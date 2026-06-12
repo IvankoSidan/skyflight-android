@@ -1,6 +1,7 @@
 #!/bin/sh
+
 #
-# Copyright ? 2015-2021 the original authors.
+# Copyright © 2015-2021 the original authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,17 +24,41 @@
 #
 #   (1) You need a POSIX-compliant shell to run this script. If your /bin/sh is
 #       noncompliant, but you have some other compliant shell such as ksh or
-#       bash, then run 'sh' with that shell as the shell interpreter. For example:
-#       'sh' with ksh as the interpreter: ksh -c './gradlew'
-#       Or use shebang line with the absolute path to the compliant shell.
+#       bash, then to run this script, type that shell name before the whole
+#       command line, like:
 #
-#       To avoid issues with system shells, we test /bin/sh -c 'command' and if
-#       it fails, we assume we are in a noncompliant shell and run ksh or bash.
-#       On Windows, we run the batch file.
+#           ksh Gradle
 #
-#       The JVM args and Java options are passed to the Java command that runs
-#       Gradle. This script allocates a pseudo TTY (using 'script' if available)
-#       if Gradle is run in the background with the '-d' or '--daemon' options.
+#       Busybox and similar reduced shells will NOT work, because this script
+#       requires all of these POSIX shell features:
+#         * functions;
+#         * expansions «$var», «${var}», «${var:-default}», «${var+SET}»,
+#           «${var#prefix}», «${var%suffix}», and «$( cmd )»;
+#         * compound commands having a testable exit status, especially «case»;
+#         * various built-in commands including «command», «set», and «ulimit».
+#
+#   Important for patching:
+#
+#   (2) This script targets any POSIX shell, so it avoids extensions provided
+#       by Bash, Ksh, etc; in particular arrays are avoided.
+#
+#       The "traditional" practice of packing multiple parameters into a
+#       space-separated string is a well documented source of bugs and security
+#       problems, so this is (mostly) avoided, by progressively accumulating
+#       options in "$@", and eventually passing that to Java.
+#
+#       Where the inherited environment variables (DEFAULT_JVM_OPTS, JAVA_OPTS,
+#       and GRADLE_OPTS) rely on word-splitting, this is performed explicitly;
+#       see the in-line comments for details.
+#
+#       There are tweaks for specific operating systems such as AIX, CygWin,
+#       Darwin, MinGW, and NonStop.
+#
+#   (3) This script is generated from the Groovy template
+#       https://github.com/gradle/gradle/blob/HEAD/subprojects/plugins/src/main/resources/org/gradle/api/internal/plugins/unixStartScript.txt
+#       within the Gradle project.
+#
+#       You can find Gradle at https://github.com/gradle/gradle/.
 #
 ##############################################################################
 
@@ -105,42 +130,32 @@ location of your Java installation."
     fi
 else
     JAVACMD=java
-    which java >/dev/null 2>&1 || die "ERROR: JAVA_HOME is not set and no 'java' command could be found in your PATH.
+    if ! command -v java >/dev/null 2>&1
+    then
+        die "ERROR: JAVA_HOME is not set and no 'java' command could be found in your PATH.
 
 Please set the JAVA_HOME variable in your environment to match the
 location of your Java installation."
+    fi
 fi
 
 # Increase the maximum file descriptors if we can.
 if ! "$cygwin" && ! "$darwin" && ! "$nonstop" ; then
     case $MAX_FD in #(
       max*)
-        # In POSIX sh, ulimit -n is undefined. The variable 'MAX_FD' is treated as a maximum
-        # limit only if the shell understands it. In all other cases, use the system's default
-        # limit. On Linux, the system's limit is a hard limit. Use ulimit -n to get the soft
-        # limit. Soft limits can be increased. For example, FreeBSD has a hard limit for
-        # open files of 1024 and a soft limit of 1024. Increasing the soft limit is allowed
-        # as long as the soft limit is not above the hard limit.
-        #
-        # On Solaris, the shell variable 'MAX_FD' is treated as a maximum (hard) limit.
-        # The variable 'MAX_FD' is used to get the maximum number of open files.
-        MAX_FD=$( ulimit -n -s 2>/dev/null ) || # try to get the system hard limit (if it is not a bash builtin)
-        MAX_FD=$( ulimit -H -n 2>/dev/null )    # try to get the system hard limit
-        ;;
-      *)
-
-        # POSIX shells do not support the -p option, and the variable 'MAX_FD' is treated as a maximum (hard) limit.
-        # The variable 'MAX_FD' is used to get the maximum number of open files.
-        MAX_FD=$( ulimit -n 2>/dev/null ) || # try to get the system soft limit (if it is not a bash builtin)
-        MAX_FD=$( ulimit -H -n 2>/dev/null ) # try to get the system hard limit
-        ;;
+        # In POSIX sh, ulimit -H is undefined. That's why the result is checked to see if it worked.
+        # shellcheck disable=SC3045
+        MAX_FD=$( ulimit -H -n ) ||
+            warn "Could not query maximum file descriptor limit"
     esac
-    if [ "$MAX_FD" = "maximum" -o "$MAX_FD" = "max" ] ; then
-        MAX_FD=1048576
-    fi
-    if [ "$MAX_FD" != "unlimited" ] ; then
-        ulimit -n "$MAX_FD"
-    fi
+    case $MAX_FD in  #(
+      '' | soft) :;; #(
+      *)
+        # In POSIX sh, ulimit -n is undefined. That's why the result is checked to see if it worked.
+        # shellcheck disable=SC3045
+        ulimit -n "$MAX_FD" ||
+            warn "Could not set maximum file descriptor limit to $MAX_FD"
+    esac
 fi
 
 # Collect all arguments for the java command, stacking in reverse order:
@@ -158,49 +173,45 @@ if "$cygwin" || "$msys" ; then
 
     JAVACMD=$( cygpath --unix "$JAVACMD" )
 
-    # We build the pattern for arguments to convert Unix paths to Windows
-    # in a subshell for robustness, since the argument parser may not
-    # have the 'comm' command. In a subshell, we change to the root
-    # directory and convert the arguments from Unix to Windows form.
-    # (We could also use the 'cygpath' and 'realpath' commands.)
-    pattern="/"
-    if ! cygpath -m "/" >/dev/null 2>&1 ; then
-        pattern="[/\\]"
-    fi
-    pattern="^$pattern"
-    for ARG in "$@" ; do
-        # Check if ARG is a plain option (starts with '-'); if so, pass it as is.
-        if [ "${ARG#-}" != "$ARG" ] ; then
-            # ARG is an option
-            args+=("$ARG")
-            continue
+    # Now convert the arguments - kludge to limit ourselves to /bin/sh
+    for arg do
+        if
+            case $arg in                                #(
+              -*)   false ;;                            # don't mess with options #(
+              /?*)  t=${arg#/} t=/${t%%/*}              # looks like a POSIX filepath
+                    [ -e "$t" ] ;;                      #(
+              *)    false ;;
+            esac
+        then
+            arg=$( cygpath --path --ignore --mixed "$arg" )
         fi
-        # Check if ARG is a file or directory name. It is expected to be a file or
-        # directory name if it is not an option. Convert the path to Windows form.
-        ARG=$( cygpath --path --mixed "$ARG" )
-        if [[ "$ARG" =~ $pattern ]] ; then
-            # The argument appears to be a file or directory name. Continue to convert
-            # it to Windows form using cygpath.
-            ARG=$( cygpath --windows "$ARG" )
-        fi
-        args+=("$ARG")
+        # Roll the args list around exactly as many times as the number of
+        # args, so each arg winds up back in the position where it started, but
+        # possibly modified.
+        #
+        # NB: a `for` loop captures its iteration list before it begins, so
+        # changing the positional parameters here affects neither the number of
+        # iterations, nor the values presented in `arg`.
+        shift                   # remove old arg
+        set -- "$@" "$arg"      # push replacement arg
     done
-else
-    args=("$@")
 fi
 
+
 # Add default JVM options here. You can also use JAVA_OPTS and GRADLE_OPTS to pass JVM options to this script.
-DEFAULT_JVM_OPTS='"-Xmx64m" "-Xms64m"'
+DEFAULT_JVM_OPTS='-Dfile.encoding=UTF-8 "-Xmx64m" "-Xms64m"'
 
-# Collect all arguments for the java command:
-#   * DEFAULT_JVM_OPTS, JAVA_OPTS, JAVA_OPTS, and optsEnvironmentVar are allowed to contain DA and DK options.
-#   * The arguments after '--' are the remaining arguments after a '--' and are treated as arguments to the java
-#     command, not as arguments to the Gradle.
+# Collect all arguments for the java command;
+#   * $DEFAULT_JVM_OPTS, $JAVA_OPTS, and $GRADLE_OPTS can contain fragments of
+#     shell script including quotes and variable substitutions, so put them in
+#     double quotes to make sure that they get re-expanded; and
+#   * put everything else in single quotes, so that it's not re-expanded.
 
-# The "eval" is needed to process the quoted arguments.
-eval "set -- $(
-    printf '%s\n' "${DEFAULT_JVM_OPTS} ${JAVA_OPTS} ${GRADLE_OPTS} \"-Dorg.gradle.appname=$APP_BASE_NAME\" -classpath \"$CLASSPATH\" org.gradle.wrapper.GradleWrapperMain \"${args[@]}\"
-)" || exit
+set -- \
+        "-Dorg.gradle.appname=$APP_BASE_NAME" \
+        -classpath "$CLASSPATH" \
+        org.gradle.wrapper.GradleWrapperMain \
+        "$@"
 
 # Stop when "xargs" is not available.
 if ! command -v xargs >/dev/null 2>&1
@@ -210,8 +221,28 @@ fi
 
 # Use "xargs" to parse quoted args.
 #
-# With -n1 it outputs one arg per line, with the parts that are properly
-# quoted.
+# With -n1 it outputs one arg per line, with the quotes and backslashes removed.
 #
-# -L1 is equivalent to "-l 1", but is the more portable POSIX variant.
-exec xargs -L1 java "$@"
+# In Bash we could simply go:
+#
+#   readarray ARGS < <( xargs -n1 <<<"$var" ) &&
+#   set -- "${ARGS[@]}" "$@"
+#
+# but POSIX shell has neither arrays nor command substitution, so instead we
+# post-process each arg (as a line of input to sed) to backslash-escape any
+# character that might be a shell metacharacter, then use eval to reverse
+# that process (while maintaining the separation between arguments), and wrap
+# the whole thing up as a single "set" statement.
+#
+# This will of course break if any of these variables contains a newline or
+# an unmatched quote.
+#
+
+eval "set -- $(
+        printf '%s\n' "$DEFAULT_JVM_OPTS $JAVA_OPTS $GRADLE_OPTS" |
+        xargs -n1 |
+        sed ' s~[^-[:alnum:]+,./:=@_]~\\&~g; ' |
+        tr '\n' ' '
+    )" '"$@"'
+
+exec "$JAVACMD" "$@"
