@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "591860628375",
+    "project_id": "myflightapp-faf28",
+    "storage_bucket": "myflightapp-faf28.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:591860628375:android:ed56888e7a5858995fe2d2",
+        "android_client_info": {
+          "package_name": "com.wheezy.skyflight"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAUCe2nHR0HpixYaN3sRYOPik4MGjHoGdo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

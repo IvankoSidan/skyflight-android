@@ -1,0 +1,7 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="StyleableToast">
+        <attr name="stColorBackground" format="color" />
+        <attr name="stIconStart" format="reference" />
+    </declare-styleable>
+</resources>

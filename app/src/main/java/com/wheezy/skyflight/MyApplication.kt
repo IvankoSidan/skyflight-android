@@ -1,0 +1,133 @@
+package com.wheezy.skyflight
+
+import android.app.Application
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.os.Build
+import androidx.work.*
+import com.google.firebase.messaging.FirebaseMessaging
+import com.stripe.android.PaymentConfiguration
+import com.stripe.android.paymentsheet.PaymentSheet
+import com.wheezy.skyflight.core.common.manager.FCMTokenManager
+import com.wheezy.skyflight.core.common.manager.NetworkMonitor
+import com.wheezy.skyflight.core.common.worker.SyncBookingWorker
+import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import java.util.concurrent.TimeUnit
+import javax.inject.Inject
+
+@HiltAndroidApp
+class MyApplication : Application() {
+
+    @Inject
+    lateinit var tokenManager: FCMTokenManager
+
+    @Inject
+    lateinit var networkMonitor: NetworkMonitor
+
+    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    override fun onCreate() {
+        super.onCreate()
+
+        createNotificationChannel()
+
+        PaymentConfiguration.init(
+            applicationContext,
+            BuildConfig.STRIPE_PUBLISHABLE_KEY
+        )
+
+        PaymentSheet.resetCustomer(applicationContext)
+
+        networkMonitor.register()
+
+        initFcm()
+
+        setupWorkManager()
+
+        observeNetworkForSync()
+    }
+
+    private fun setupWorkManager() {
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+
+        val syncRequest = PeriodicWorkRequestBuilder<SyncBookingWorker>(
+            15, TimeUnit.MINUTES
+        )
+            .setConstraints(constraints)
+            .setBackoffCriteria(
+                BackoffPolicy.EXPONENTIAL,
+                1, TimeUnit.MINUTES
+            )
+            .build()
+
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "sync_offline_bookings",
+            ExistingPeriodicWorkPolicy.KEEP,
+            syncRequest
+        )
+    }
+
+    private fun observeNetworkForSync() {
+        applicationScope.launch {
+            networkMonitor.isConnected.collect { isConnected ->
+                if (isConnected) {
+                    val constraints = Constraints.Builder()
+                        .setRequiredNetworkType(NetworkType.CONNECTED)
+                        .build()
+
+                    val syncRequest = OneTimeWorkRequestBuilder<SyncBookingWorker>()
+                        .setConstraints(constraints)
+                        .build()
+
+                    WorkManager.getInstance(this@MyApplication)
+                        .enqueueUniqueWork(
+                            "sync_bookings_now",
+                            ExistingWorkPolicy.REPLACE,
+                            syncRequest
+                        )
+                }
+            }
+        }
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                "flight_notifications_channel",
+                "Flight Notifications",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Flight booking and payment notifications"
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 500, 200, 500)
+            }
+            val notificationManager = getSystemService(NotificationManager::class.java)
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
+
+    private fun initFcm() {
+        applicationScope.launch {
+            try {
+                val token = FirebaseMessaging.getInstance().token.await()
+                if (token.isNotEmpty()) {
+                    tokenManager.sendTokenToServer(token)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    override fun onTerminate() {
+        super.onTerminate()
+        networkMonitor.unregister()
+    }
+}

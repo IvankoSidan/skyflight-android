@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ===== 🌙 ТЁМНАЯ ТЕМА (переопределение цветов) ===== -->
+
+    <!-- Основные цвета -->
+    <color name="background">#121212</color>
+    <color name="surface">#1E1E1E</color>
+    <color name="surface_variant">#2D2D2D</color>
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    <color name="lightPurple">#7B3EFF</color>
+
+    <!-- Текст и контент -->
+    <color name="on_background">#FFFFFF</color>
+    <color name="on_surface">#FFFFFF</color>
+    <color name="on_surface_variant">#B0B0B0</color>
+
+    <!-- Акцентные цвета -->
+    <color name="primary">#7B3EFF</color>
+    <color name="primary_container">#311B92</color>
+    <color name="on_primary">#FFFFFF</color>
+
+    <color name="secondary">#E91E63</color>
+    <color name="secondary_container">#880E4F</color>
+    <color name="on_secondary">#FFFFFF</color>
+
+    <color name="tertiary">#FF9800</color>
+    <color name="tertiary_container">#E65100</color>
+    <color name="on_tertiary">#000000</color>
+
+    <!-- Статусные цвета -->
+    <color name="success">#4CAF50</color>
+    <color name="warning">#FF9800</color>
+    <color name="error">#F44336</color>
+    <color name="info">#2196F3</color>
+
+    <!-- Дополнительные -->
+    <color name="outline">#666666</color>
+    <color name="shadow">#000000</color>
+    <color name="orange">#FF9800</color>
+    <color name="green">#4CAF50</color>
+</resources>

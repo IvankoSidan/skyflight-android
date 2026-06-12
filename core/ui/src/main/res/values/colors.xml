@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ===== 🌞 СВЕТЛАЯ ТЕМА (значения по умолчанию) ===== -->
+
+    <!-- Основные цвета -->
+    <color name="background">#FFFFFF</color>
+    <color name="surface">#F8F9FA</color>
+    <color name="surface_variant">#E9ECEF</color>
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    <color name="lightPurple">#7B3EFF</color>
+
+    <!-- Текст и контент -->
+    <color name="on_background">#212121</color>
+    <color name="on_surface">#212121</color>
+    <color name="on_surface_variant">#666666</color>
+
+    <!-- Акцентные цвета -->
+    <color name="primary">#7B3EFF</color>
+    <color name="primary_container">#F3E9FF</color>
+    <color name="on_primary">#FFFFFF</color>
+
+    <color name="secondary">#E91E63</color>
+    <color name="secondary_container">#FCE4EC</color>
+    <color name="on_secondary">#FFFFFF</color>
+
+    <color name="tertiary">#FF9800</color>
+    <color name="tertiary_container">#FFF3E0</color>
+    <color name="on_tertiary">#212121</color>
+
+    <!-- Статусные цвета -->
+    <color name="success">#4CAF50</color>
+    <color name="warning">#FF9800</color>
+    <color name="error">#F44336</color>
+    <color name="info">#2196F3</color>
+
+    <!-- Дополнительные -->
+    <color name="outline">#DDDDDD</color>
+    <color name="shadow">#000000</color>
+    <color name="orange">#FF9800</color>
+    <color name="green">#4CAF50</color>
+</resources>

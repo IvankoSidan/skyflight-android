@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">SkyBook</string>
+    <string name="hello_blank_fragment">Hello, blank fragment</string>
+    <string name="subtitle_splash">A convenient way to buy airline tickets in just a few clicks through the app</string>
+    <string name="dashboard_title">Let\'s explore the world\n together with us !!!</string>
+    <string name="app_logo">App logo</string>
+    <string name="sky_book">Sky Book</string>
+    <string name="find_you_fight">Find your flight</string>
+    <string name="login">Login</string>
+</resources>

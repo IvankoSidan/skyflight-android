@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.MyJetpackProject" parent="Theme.AppCompat.Light.NoActionBar" />
+
+    <style name="errorToast">
+        <item name="stColorBackground">@color/orange</item>
+        <item name="stIconStart">@drawable/error</item>
+    </style>
+
+    <style name="successToast">
+        <item name="stColorBackground">@color/green</item>
+        <item name="stIconStart">@drawable/success</item>
+    </style>
+</resources>
