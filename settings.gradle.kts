@@ -1,16 +1,3 @@
-@Suppress("UnstableApiUsage")
-dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
-    repositories {
-        maven("https://maven.aliyun.com/repository/public")
-        maven("https://maven.aliyun.com/repository/google")
-        maven("https://maven.aliyun.com/repository/gradle-plugin")
-        google()
-        mavenCentral()
-        maven("https://jitpack.io")
-    }
-}
-
 pluginManagement {
     repositories {
         google()
@@ -19,23 +6,34 @@ pluginManagement {
     }
 }
 
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+        maven("https://jitpack.io")
+    }
+}
+
 rootProject.name = "SkyFlightBooking"
 
-include(":app")
-include(":core:model")
-include(":core:common")
-include(":core:network")
-include(":core:datastore")
-include(":core:ui")
-include(":core:database")
-include(":feature:auth")
-include(":feature:search")
-include(":feature:booking")
-include(":feature:notifications")
-include(":navigation")
-include(":feature:referral")
-include(":feature:review")
-include(":feature:loyalty")
-include(":feature:cards")
-include(":feature:invoice")
-include(":core:config")
+include(
+    ":app",
+    ":core:model",
+    ":core:common",
+    ":core:network",
+    ":core:datastore",
+    ":core:ui",
+    ":core:database",
+    ":core:config",
+    ":feature:auth",
+    ":feature:search",
+    ":feature:booking",
+    ":feature:notifications",
+    ":navigation",
+    ":feature:referral",
+    ":feature:review",
+    ":feature:loyalty",
+    ":feature:cards",
+    ":feature:invoice"
+)
