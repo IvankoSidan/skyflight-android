@@ -142,9 +142,6 @@ class BookingViewModel @Inject constructor(
                 is CancelOrDeleteBookingUseCase.Result.Error -> {
                     SnackbarHelper.showError(result.message)
                 }
-                else -> {
-                    SnackbarHelper.showError("Unknown error occurred")
-                }
             }
 
             _loadingBookingIds.value = _loadingBookingIds.value - bookingId

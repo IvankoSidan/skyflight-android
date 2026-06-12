@@ -38,6 +38,7 @@ dependencies {
     implementation(project(":core:ui"))
     implementation(project(":core:datastore"))
     implementation(project(":core:network"))
+    implementation(project(":core:config"))
     implementation(project(":navigation"))
 
     implementation(platform("androidx.compose:compose-bom:2024.10.01"))

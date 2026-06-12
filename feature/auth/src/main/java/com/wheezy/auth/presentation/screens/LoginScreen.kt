@@ -25,6 +25,8 @@ import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.wheezy.skyflight.core.common.utils.AuthValidator.isEmailValid
 import com.wheezy.skyflight.core.common.utils.AuthValidator.isPasswordValid
+import com.wheezy.skyflight.core.config.Config
+import com.wheezy.skyflight.core.network.BuildConfig
 import com.wheezy.skyflight.core.ui.R
 import com.wheezy.skyflight.core.ui.components.GlassCard
 import com.wheezy.skyflight.core.ui.components.GlassCardDefaults
@@ -49,7 +51,7 @@ fun LoginScreen(
 
     val context = LocalContext.current
     val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-        .requestIdToken(context.getString(R.string.server_client_id))
+        .requestIdToken(Config.GOOGLE_SERVER_CLIENT_ID)
         .requestEmail()
         .build()
     val googleClient = GoogleSignIn.getClient(context, gso)

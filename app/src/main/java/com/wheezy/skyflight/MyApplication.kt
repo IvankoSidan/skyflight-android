@@ -11,6 +11,7 @@ import com.stripe.android.paymentsheet.PaymentSheet
 import com.wheezy.skyflight.core.common.manager.FCMTokenManager
 import com.wheezy.skyflight.core.common.manager.NetworkMonitor
 import com.wheezy.skyflight.core.common.worker.SyncBookingWorker
+import com.wheezy.skyflight.core.config.Config
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -33,6 +34,10 @@ class MyApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+
+        Config.STRIPE_PUBLISHABLE_KEY = BuildConfig.STRIPE_PUBLISHABLE_KEY
+        Config.OPENWEATHER_API_KEY = BuildConfig.OPENWEATHER_API_KEY
+        Config.GOOGLE_SERVER_CLIENT_ID = BuildConfig.GOOGLE_SERVER_CLIENT_ID
 
         createNotificationChannel()
 

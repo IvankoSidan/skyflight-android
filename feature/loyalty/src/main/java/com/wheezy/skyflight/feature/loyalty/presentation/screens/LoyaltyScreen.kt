@@ -64,7 +64,6 @@ fun LoyaltyScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Points Balance Card
                 item {
                     GlassCard(modifier = Modifier.fillMaxWidth()) {
                         when (val state = pointsBalanceState) {
@@ -133,7 +132,7 @@ fun LoyaltyScreen(
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                         LinearProgressIndicator(
-                                            progress = state.data.progressToNextTier,
+                                            progress = { state.data.progressToNextTier },
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .height(8.dp)
@@ -165,7 +164,6 @@ fun LoyaltyScreen(
                     }
                 }
 
-                // Recent Transactions
                 item {
                     Text(
                         text = "Recent Transactions",
@@ -275,7 +273,6 @@ fun LoyaltyScreen(
                     }
                 }
 
-                // Tiers
                 item {
                     Text(
                         text = "Membership Tiers",
@@ -298,7 +295,7 @@ fun LoyaltyScreen(
                     }
                     is TiersState.Success -> {
                         items(state.tiers) { tier ->
-                            TierCard(tier = tier)
+                            TierCard(tier = tier, isCurrent = false)
                         }
                     }
                     is TiersState.Error -> {
@@ -320,7 +317,6 @@ fun LoyaltyScreen(
                     }
                 }
 
-                // Кнопка сброса (демонстрация clearAll)
                 item {
                     TextButton(
                         onClick = { viewModel.resetAllStates() },

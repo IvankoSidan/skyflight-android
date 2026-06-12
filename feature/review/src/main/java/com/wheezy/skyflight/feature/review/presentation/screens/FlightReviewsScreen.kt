@@ -44,19 +44,16 @@ fun FlightReviewsScreen(
     var currentPage by remember { mutableIntStateOf(0) }
     var isLoadingMore by remember { mutableStateOf(false) }
 
-    // Загружаем рейтинг авиакомпании для гистограммы
     LaunchedEffect(airlineName) {
         viewModel.loadAirlineRating(airlineName)
     }
 
-    // Загружаем отзывы с пагинацией
     LaunchedEffect(flightId) {
         viewModel.resetReviewsPage()
         currentPage = 0
         viewModel.loadFlightReviewsPaginated(flightId, 0)
     }
 
-    // Автоматическая загрузка следующих страниц при скролле
     LaunchedEffect(scrollState.layoutInfo.visibleItemsInfo.lastOrNull()?.index, reviewsPageState) {
         val state = reviewsPageState
         if (state is ReviewsPageState.Success && !isLoadingMore) {
@@ -71,7 +68,6 @@ fun FlightReviewsScreen(
         }
     }
 
-    // Сброс флага загрузки при изменении состояния
     LaunchedEffect(reviewsPageState) {
         isLoadingMore = false
     }
@@ -149,11 +145,8 @@ fun FlightReviewsScreen(
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        // Rating Summary Section - используем airlineRatingState
                         item {
-                            // ⚠️ ВАЖНО: сохраняем значение в локальную переменную перед проверкой
-                            val ratingState = airlineRatingState
-                            when (ratingState) {
+                            when (val ratingState = airlineRatingState) {
                                 is AirlineRatingUiState.Loading -> {
                                     GlassCard(
                                         modifier = Modifier.fillMaxWidth(),
@@ -186,7 +179,6 @@ fun FlightReviewsScreen(
                                                     .padding(16.dp),
                                                 horizontalAlignment = Alignment.CenterHorizontally
                                             ) {
-                                                // Average Rating
                                                 Text(
                                                     text = airlineRating.averageRatingFormatted,
                                                     style = MaterialTheme.typography.displayLarge,
@@ -207,7 +199,6 @@ fun FlightReviewsScreen(
 
                                                 Spacer(modifier = Modifier.height(16.dp))
 
-                                                // Rating Distribution Chart (гистограмма)
                                                 Text(
                                                     text = "Rating Distribution",
                                                     style = MaterialTheme.typography.titleSmall,
@@ -282,14 +273,11 @@ fun FlightReviewsScreen(
                                         }
                                     }
                                 }
-                                else -> {}
+                                else -> Unit
                             }
                         }
 
-                        // Reviews List
-                        // ⚠️ ВАЖНО: снова сохраняем в локальную переменную для проверки
-                        val currentRatingState = airlineRatingState
-                        if (reviews.isEmpty() && (currentRatingState is AirlineRatingUiState.Success && currentRatingState.rating.totalReviews == 0)) {
+                        if (reviews.isEmpty() && (airlineRatingState is AirlineRatingUiState.Success && (airlineRatingState as AirlineRatingUiState.Success).rating.totalReviews == 0)) {
                             // Already showed "No reviews yet"
                         } else if (reviews.isEmpty()) {
                             item {
@@ -317,7 +305,6 @@ fun FlightReviewsScreen(
                                 )
                             }
 
-                            // Loading more indicator
                             if (state.currentPage < state.totalPages - 1) {
                                 item {
                                     Box(

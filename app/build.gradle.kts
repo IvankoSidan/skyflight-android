@@ -104,6 +104,7 @@ dependencies {
     implementation(project(":feature:loyalty"))
     implementation(project(":feature:cards"))
     implementation(project(":feature:invoice"))
+    implementation(project(":core:config"))
 
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")

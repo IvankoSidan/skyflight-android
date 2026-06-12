@@ -29,14 +29,30 @@ fun TierCard(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = backgroundColor.copy(alpha = 0.15f)
+            containerColor = if (isCurrent) {
+                backgroundColor.copy(alpha = 0.3f)
+            } else {
+                backgroundColor.copy(alpha = 0.15f)
+            }
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (isCurrent) 4.dp else 2.dp
+        )
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            if (isCurrent) {
+                Text(
+                    text = "★ CURRENT ★",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = backgroundColor,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+            }
+
             Text(
                 text = tier.tier,
                 style = MaterialTheme.typography.titleLarge,

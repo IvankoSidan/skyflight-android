@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import com.wheezy.skyflight.core.config.Config
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -49,7 +50,7 @@ fun RegisterScreen(
 
     val context = LocalContext.current
     val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-        .requestIdToken(context.getString(R.string.server_client_id))
+        .requestIdToken(Config.GOOGLE_SERVER_CLIENT_ID)
         .requestEmail()
         .build()
     val googleClient = GoogleSignIn.getClient(context, gso)
