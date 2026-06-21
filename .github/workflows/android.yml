@@ -3,14 +3,12 @@ name: Android CI/CD
 on:
   push:
     branches: [ main, develop ]
-  pull_request:
-    branches: [ main ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    
     steps:
       - uses: actions/checkout@v4
 
@@ -59,17 +57,3 @@ jobs:
         with:
           name: app-release
           path: app/build/outputs/apk/release/*.apk
-
-      # Firebase App Distribution (опционально)
-      - name: Deploy to Firebase App Distribution
-        if: github.ref == 'refs/heads/main'
-        uses: wzieba/Firebase-App-Distribution-Github-Action@v1
-        with:
-          appId: ${{ secrets.FIREBASE_APP_ID }}
-          token: ${{ secrets.FIREBASE_TOKEN }}
-          groups: testers
-          file: app/build/outputs/apk/release/app-release.apk
-          release_notes: |
-            🚀 New version!
-            📦 Build: ${{ github.sha }}
-            📝 Commit: ${{ github.event.head_commit.message }}
