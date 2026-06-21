@@ -1,5 +1,8 @@
 package com.wheezy.skyflight.feature.booking.domain.di
 
+import com.wheezy.skyflight.core.network.api.ReviewApiService
+import com.wheezy.skyflight.feature.booking.data.di.BookingRepositoryModule
+import com.wheezy.skyflight.feature.booking.data.di.WeatherRepositoryModule
 import com.wheezy.skyflight.feature.booking.domain.repository.BookingRepository
 import com.wheezy.skyflight.feature.booking.domain.repository.FlightRepository
 import com.wheezy.skyflight.feature.booking.domain.repository.PaymentRepository
@@ -10,7 +13,9 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
-@Module
+@Module(
+    includes = [BookingRepositoryModule::class, WeatherRepositoryModule::class]
+)
 @InstallIn(SingletonComponent::class)
 object BookingUseCaseModule {
 
@@ -46,11 +51,6 @@ object BookingUseCaseModule {
 
     @Provides
     @Singleton
-    fun provideGetFlightByIdUseCase(flightRepository: FlightRepository): GetFlightByIdUseCase =
-        GetFlightByIdUseCase(flightRepository)
-
-    @Provides
-    @Singleton
     fun provideGetReservedSeatsUseCase(flightRepository: FlightRepository): GetReservedSeatsUseCase =
         GetReservedSeatsUseCase(flightRepository)
 
@@ -66,6 +66,6 @@ object BookingUseCaseModule {
 
     @Provides
     @Singleton
-    fun provideCheckCanReviewUseCase(reviewApiService: com.wheezy.skyflight.core.network.api.ReviewApiService): CheckCanReviewUseCase =
+    fun provideCheckCanReviewUseCase(reviewApiService: ReviewApiService): CheckCanReviewUseCase =
         CheckCanReviewUseCase(reviewApiService)
 }

@@ -2,7 +2,9 @@ package com.wheezy.skyflight.feature.booking.presentation.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.wheezy.skyflight.core.common.event.BookingUpdateEventBus
 import com.wheezy.skyflight.core.common.manager.NetworkMonitor
+import com.wheezy.skyflight.core.common.usecase.GetFlightByIdUseCase
 import com.wheezy.skyflight.core.database.dao.OfflineBookingDao
 import com.wheezy.skyflight.core.database.entity.OfflineBookingEntity
 import com.wheezy.skyflight.core.model.BookingStatus
@@ -53,6 +55,36 @@ class BookingViewModel @Inject constructor(
     private val _canReviewMap = MutableStateFlow<Map<Long, Boolean>>(emptyMap())
     val canReviewMap: StateFlow<Map<Long, Boolean>> = _canReviewMap.asStateFlow()
 
+    private val _offlineBookingsCount = MutableStateFlow(0)
+    val offlineBookingsCount: StateFlow<Int> = _offlineBookingsCount.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            BookingUpdateEventBus.events.collect { event ->
+                event?.let {
+                    updateBookingStatusFromEvent(it.bookingId, it.status)
+                }
+            }
+        }
+    }
+
+    private fun updateBookingStatusFromEvent(bookingId: Long, status: String) {
+        val currentState = _bookingListState.value
+        if (currentState is BookingListState.Success) {
+            val updatedBookings = currentState.bookings.map { booking ->
+                if (booking.bookingId == bookingId) {
+                    try {
+                        booking.copy(status = BookingStatus.valueOf(status))
+                    } catch (_: Exception) {
+                        booking
+                    }
+                } else booking
+            }
+            _bookingListState.value = BookingListState.Success(updatedBookings)
+            SnackbarHelper.showInfo("Booking #$bookingId status updated to $status")
+        }
+    }
+
     suspend fun getBookingById(bookingId: Long): Result<BookingDetailsDTO> {
         return getBookingByIdUseCase(bookingId)
     }
@@ -61,22 +93,27 @@ class BookingViewModel @Inject constructor(
         return getFlightByIdUseCase(flightId)
     }
 
+    fun loadOfflineBookingsCount() {
+        viewModelScope.launch {
+            val count = offlineBookingDao.getPendingSyncBookingsSuspend().size
+            _offlineBookingsCount.value = count
+        }
+    }
+
     fun checkCanReview(bookingId: Long) {
         viewModelScope.launch {
             val result = checkCanReviewUseCase(bookingId)
-            _canReviewMap.value = _canReviewMap.value + (bookingId to result)
+            val currentMap = _canReviewMap.value
+            _canReviewMap.value = currentMap + (bookingId to result)
         }
     }
 
     fun loadMyBookings() {
         viewModelScope.launch {
             _bookingListState.value = BookingListState.Loading
-            val result = getMyBookingsUseCase()
-            result.onSuccess { bookings ->
+            getMyBookingsUseCase().onSuccess { bookings ->
                 _bookingListState.value = BookingListState.Success(bookings)
-                if (bookings.isEmpty()) {
-                    SnackbarHelper.showInfo("No bookings found")
-                }
+                if (bookings.isEmpty()) SnackbarHelper.showInfo("No bookings found")
             }.onFailure { error ->
                 _bookingListState.value = BookingListState.Error(error.message ?: "Failed to load bookings")
                 SnackbarHelper.showError(error.message ?: "Failed to load bookings")
@@ -94,10 +131,8 @@ class BookingViewModel @Inject constructor(
             onComplete(false, null)
             return
         }
-
         viewModelScope.launch {
             _isCreatingBooking.value = true
-
             if (!networkMonitor.isConnected.value) {
                 val offlineBooking = OfflineBookingEntity(
                     flightId = flight.flightId ?: 0,
@@ -105,15 +140,16 @@ class BookingViewModel @Inject constructor(
                     passengerName = null,
                     passengerEmail = null,
                     status = "PENDING_SYNC",
-                    retryCount = 0
+                    retryCount = 0,
+                    createdAt = System.currentTimeMillis()
                 )
                 offlineBookingDao.insertBooking(offlineBooking)
-                SnackbarHelper.showInfo("Booking saved offline. Will sync automatically when online.")
+                SnackbarHelper.showInfo("✈️ Booking saved offline! Will sync automatically when online.")
                 _isCreatingBooking.value = false
+                loadOfflineBookingsCount()
                 onComplete(false, null)
                 return@launch
             }
-
             val result = createBookingUseCase(flight, selectedSeats)
             if (result.success) {
                 SnackbarHelper.showSuccess("Booking created successfully!")
@@ -131,10 +167,9 @@ class BookingViewModel @Inject constructor(
 
     fun cancelOrDeleteBooking(bookingId: Long, status: BookingStatus) {
         viewModelScope.launch {
-            _loadingBookingIds.value = _loadingBookingIds.value + bookingId
-
-            val result = cancelOrDeleteBookingUseCase(bookingId, status)
-            when (result) {
+            val currentLoadingIds = _loadingBookingIds.value
+            _loadingBookingIds.value = currentLoadingIds + bookingId
+            when (val result = cancelOrDeleteBookingUseCase(bookingId, status)) {
                 is CancelOrDeleteBookingUseCase.Result.Success -> {
                     loadMyBookings()
                     SnackbarHelper.showSuccess("Operation completed successfully")
@@ -143,37 +178,24 @@ class BookingViewModel @Inject constructor(
                     SnackbarHelper.showError(result.message)
                 }
             }
-
-            _loadingBookingIds.value = _loadingBookingIds.value - bookingId
+            val updatedLoadingIds = _loadingBookingIds.value
+            _loadingBookingIds.value = updatedLoadingIds - bookingId
         }
     }
 
     fun updateBookingStatus(bookingId: Long, newStatus: BookingStatus) {
         viewModelScope.launch {
-            _loadingBookingIds.value = _loadingBookingIds.value + bookingId
-
-            val result = updateBookingStatusUseCase(bookingId, newStatus)
-            result.onSuccess {
+            val currentLoadingIds = _loadingBookingIds.value
+            _loadingBookingIds.value = currentLoadingIds + bookingId
+            updateBookingStatusUseCase(bookingId, newStatus).onSuccess {
                 loadMyBookings()
                 SnackbarHelper.showSuccess("Booking status updated to ${newStatus.name}")
             }.onFailure { error ->
                 SnackbarHelper.showError(error.message ?: "Failed to update status")
             }
-
-            _loadingBookingIds.value = _loadingBookingIds.value - bookingId
+            val updatedLoadingIds = _loadingBookingIds.value
+            _loadingBookingIds.value = updatedLoadingIds - bookingId
         }
-    }
-
-    fun setFlight(flight: FlightModel) {
-        _selectedFlight.value = flight
-    }
-
-    fun setSelectedSeats(seats: List<Seat>) {
-        _selectedSeats.value = seats
-    }
-
-    fun setBookingId(id: Long?) {
-        _bookingId.value = id
     }
 
     fun clearBooking() {

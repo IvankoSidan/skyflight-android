@@ -6,7 +6,9 @@ import com.google.gson.JsonObject
 import com.wheezy.skyflight.core.common.event.BookingUpdateEventBus
 import com.wheezy.skyflight.core.common.event.PaymentUpdateEventBus
 import com.wheezy.skyflight.core.common.network.BatchRequestManager
+import com.wheezy.skyflight.core.common.utils.DelayConstants
 import com.wheezy.skyflight.core.common.utils.NotificationEventBus
+import com.wheezy.skyflight.core.datastore.preferences.WebSocketPreferences
 import com.wheezy.skyflight.core.network.config.NetworkConfig
 import com.wheezy.skyflight.core.network.manager.TokenManager
 import kotlinx.coroutines.CoroutineScope
@@ -15,6 +17,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -33,25 +36,25 @@ class WebSocketManagerImpl @Inject constructor(
     private val gson: Gson,
     private val networkMonitor: NetworkMonitor,
     private val batchRequestManager: BatchRequestManager,
-    private val tokenManager: TokenManager
+    private val tokenManager: TokenManager,
+    private val fcmTokenManager: FCMTokenManagerImpl,
+    private val webSocketPreferences: WebSocketPreferences
 ) : WebSocketManager {
 
     companion object {
         private const val TAG = "WebSocketManager"
-        private const val RECONNECT_DELAY = 5000L
-        private const val HEARTBEAT_INTERVAL = 15000L
     }
 
     private var webSocket: WebSocket? = null
-    private var isManualDisconnect = false
+    private var isManualDisconnect: Boolean = false
     private var heartbeatJob: Job? = null
     private var reconnectJob: Job? = null
-    private val isConnecting = AtomicBoolean(false)
-    private var subscriptionCount = 0
-    private var reconnectAttempts = 0
-    private val maxReconnectAttempts = 10
+    private val isConnecting: AtomicBoolean = AtomicBoolean(false)
+    private var subscriptionCount: Int = 0
+    private var reconnectAttempts: Int = 0
+    private val maxReconnectAttempts: Int = 10
 
-    private val client = OkHttpClient.Builder()
+    private val client: OkHttpClient = OkHttpClient.Builder()
         .pingInterval(30, TimeUnit.SECONDS)
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
@@ -61,40 +64,78 @@ class WebSocketManagerImpl @Inject constructor(
         })
         .build()
 
-    private val _connectionState = MutableStateFlow(WebSocketManager.ConnectionState.DISCONNECTED)
+    private val _connectionState: MutableStateFlow<WebSocketManager.ConnectionState> = MutableStateFlow(WebSocketManager.ConnectionState.DISCONNECTED)
     override val connectionState: StateFlow<WebSocketManager.ConnectionState> = _connectionState
 
-    private val _lastMessage = MutableStateFlow<String?>(null)
+    private val _lastMessage: MutableStateFlow<String?> = MutableStateFlow<String?>(null)
     override val lastMessage: StateFlow<String?> = _lastMessage
 
-    private val wsUrl = NetworkConfig.WS_BASE_URL
+    private val wsUrl: String = NetworkConfig.WS_BASE_URL
 
     init {
         CoroutineScope(Dispatchers.IO).launch {
-            networkMonitor.isConnected.collect { isConnected ->
-                if (isConnected && !isManualDisconnect && _connectionState.value != WebSocketManager.ConnectionState.CONNECTED) {
-                    delay(1000)
-                    connectWithBackoff()
+            try {
+                fcmTokenManager.observeToken()
+
+                batchRequestManager.batchEvents.collect {
+                    Log.d(TAG, "Batch event received")
                 }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in init", e)
+            }
+        }
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val autoConnect: Boolean = webSocketPreferences.autoConnect.first()
+                if (autoConnect) {
+                    connect()
+                }
+
+                val reconnectEnabled: Boolean = webSocketPreferences.reconnectEnabled.first()
+                if (!reconnectEnabled) {
+                    Log.d(TAG, "Reconnect disabled by user preference")
+                }
+
+                networkMonitor.isConnected.collect { isConnected ->
+                    try {
+                        if (isConnected && !isManualDisconnect && _connectionState.value != WebSocketManager.ConnectionState.CONNECTED) {
+                            delay(DelayConstants.LONG_DELAY.toMillis())
+                            if (webSocketPreferences.reconnectEnabled.first()) {
+                                connectWithBackoff()
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error in network monitor", e)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error initializing WebSocketManager", e)
             }
         }
     }
 
     private suspend fun connectWithBackoff() {
-        val delay = when {
-            reconnectAttempts < 3 -> 1000L
-            reconnectAttempts < 6 -> 5000L
-            else -> 30000L
-        }
+        try {
+            val delayDuration: java.time.Duration = when {
+                reconnectAttempts < 3 -> DelayConstants.LONG_DELAY
+                reconnectAttempts < 6 -> DelayConstants.VERY_LONG_DELAY
+                else -> DelayConstants.EXTRA_LONG_DELAY
+            }
 
-        if (reconnectAttempts > 0) {
-            delay(delay)
-        }
+            if (reconnectAttempts > 0) {
+                delay(delayDuration.toMillis())
+            }
 
-        if (reconnectAttempts < maxReconnectAttempts) {
-            reconnectAttempts++
-            connect()
-        } else {
+            if (reconnectAttempts < maxReconnectAttempts) {
+                reconnectAttempts++
+                connect()
+            } else {
+                reconnectAttempts = 0
+                Log.e(TAG, "Max reconnect attempts reached, giving up")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in connectWithBackoff", e)
             reconnectAttempts = 0
         }
     }
@@ -111,7 +152,7 @@ class WebSocketManagerImpl @Inject constructor(
             return
         }
 
-        val token = tokenManager.getToken()
+        val token: String? = tokenManager.getToken()
         if (token.isNullOrEmpty()) {
             Log.e(TAG, "No auth token available, cannot connect WebSocket")
             _connectionState.value = WebSocketManager.ConnectionState.DISCONNECTED
@@ -124,70 +165,105 @@ class WebSocketManagerImpl @Inject constructor(
         _connectionState.value = WebSocketManager.ConnectionState.CONNECTING
 
         CoroutineScope(Dispatchers.IO).launch {
-            val request = Request.Builder()
-                .url(wsUrl)
-                .addHeader("Authorization", "Bearer $token")
-                .build()
+            try {
+                val request: Request = Request.Builder()
+                    .url(wsUrl)
+                    .addHeader("Authorization", "Bearer $token")
+                    .build()
 
-            webSocket = client.newWebSocket(request, createWebSocketListener())
+                webSocket = client.newWebSocket(request, createWebSocketListener())
+            } catch (e: Exception) {
+                Log.e(TAG, "Error creating WebSocket", e)
+                isConnecting.set(false)
+                _connectionState.value = WebSocketManager.ConnectionState.DISCONNECTED
+            }
         }
     }
 
     override fun subscribeToNotifications() {
-        subscriptionCount++
-        Log.d(TAG, "subscribeToNotifications, total: $subscriptionCount")
-        if (subscriptionCount == 1) {
-            sendMessage("/app/notifications/subscribe", emptyMap<String, String>())
+        try {
+            subscriptionCount++
+            CoroutineScope(Dispatchers.IO).launch {
+                webSocketPreferences.setSubscribed(true)
+            }
+            Log.d(TAG, "subscribeToNotifications, total: $subscriptionCount")
+            if (subscriptionCount == 1) {
+                sendMessage("/app/notifications/subscribe", emptyMap<String, String>())
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error subscribing to notifications", e)
         }
     }
 
     override fun subscribeToBookingUpdates() {
-        subscriptionCount++
-        Log.d(TAG, "subscribeToBookingUpdates, total: $subscriptionCount")
-        if (subscriptionCount == 1) {
-            sendMessage("/app/bookings/subscribe", emptyMap<String, String>())
+        try {
+            subscriptionCount++
+            CoroutineScope(Dispatchers.IO).launch {
+                webSocketPreferences.setSubscribed(true)
+            }
+            Log.d(TAG, "subscribeToBookingUpdates, total: $subscriptionCount")
+            if (subscriptionCount == 1) {
+                sendMessage("/app/bookings/subscribe", emptyMap<String, String>())
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error subscribing to booking updates", e)
         }
     }
 
     @Synchronized
     override fun disconnect() {
-        Log.d(TAG, "Manual disconnect")
-        isManualDisconnect = true
-        isConnecting.set(false)
-        reconnectAttempts = 0
-        stopHeartbeat()
-        reconnectJob?.cancel()
-        webSocket?.close(1000, "Manual disconnect")
-        webSocket = null
-        _connectionState.value = WebSocketManager.ConnectionState.DISCONNECTED
-        subscriptionCount = 0
+        try {
+            Log.d(TAG, "Manual disconnect")
+            isManualDisconnect = true
+            isConnecting.set(false)
+            reconnectAttempts = 0
+            stopHeartbeat()
+            reconnectJob?.cancel()
+            webSocket?.close(1000, "Manual disconnect")
+            webSocket = null
+            _connectionState.value = WebSocketManager.ConnectionState.DISCONNECTED
+            subscriptionCount = 0
+
+            batchRequestManager.cancelAll()
+
+            CoroutineScope(Dispatchers.IO).launch {
+                webSocketPreferences.setSubscribed(false)
+                webSocketPreferences.setReconnectEnabled(false)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error disconnecting", e)
+        }
     }
 
     override fun sendMessage(destination: String, payload: Any) {
-        if (_connectionState.value != WebSocketManager.ConnectionState.CONNECTED) {
-            CoroutineScope(Dispatchers.IO).launch {
-                batchRequestManager.addRequest(
-                    id = destination,
-                    execute = {
-                        webSocket?.send(gson.toJson(mapOf("destination" to destination, "payload" to payload)))
-                        true
-                    },
-                    onResult = { },
-                    onError = { Log.e(TAG, "Failed to send message to $destination", it) }
-                )
+        try {
+            if (_connectionState.value != WebSocketManager.ConnectionState.CONNECTED) {
+                CoroutineScope(Dispatchers.IO).launch {
+                    batchRequestManager.addRequest(
+                        id = destination,
+                        execute = {
+                            webSocket?.send(gson.toJson(mapOf("destination" to destination, "payload" to payload)))
+                            true
+                        },
+                        onResult = { },
+                        onError = { error: Throwable -> Log.e(TAG, "Failed to send message to $destination", error) }
+                    )
+                }
+                return
             }
-            return
+            val message: Map<String, Any> = mapOf("destination" to destination, "payload" to payload)
+            webSocket?.send(gson.toJson(message))
+        } catch (e: Exception) {
+            Log.e(TAG, "Error sending message to $destination", e)
         }
-        val message = mapOf("destination" to destination, "payload" to payload)
-        webSocket?.send(gson.toJson(message))
     }
 
     private fun startHeartbeat() {
         stopHeartbeat()
         heartbeatJob = CoroutineScope(Dispatchers.IO).launch {
             while (_connectionState.value == WebSocketManager.ConnectionState.CONNECTED && !isManualDisconnect) {
-                delay(HEARTBEAT_INTERVAL)
                 try {
+                    delay(DelayConstants.HEARTBEAT_INTERVAL.toMillis())
                     webSocket?.send("\n")
                 } catch (e: Exception) {
                     Log.e(TAG, "Heartbeat failed", e)
@@ -197,26 +273,42 @@ class WebSocketManagerImpl @Inject constructor(
     }
 
     private fun stopHeartbeat() {
-        heartbeatJob?.cancel()
-        heartbeatJob = null
+        try {
+            heartbeatJob?.cancel()
+            heartbeatJob = null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error stopping heartbeat", e)
+        }
     }
 
-    private fun createWebSocketListener() = object : WebSocketListener() {
+    private fun createWebSocketListener(): WebSocketListener = object : WebSocketListener() {
         override fun onOpen(webSocket: WebSocket, response: Response) {
-            Log.d(TAG, "WebSocket opened")
-            isConnecting.set(false)
-            reconnectAttempts = 0
+            try {
+                Log.d(TAG, "WebSocket opened")
+                isConnecting.set(false)
+                reconnectAttempts = 0
 
-            val connectFrame = "CONNECT\naccept-version:1.2\nheart-beat:10000,10000\n\n\u0000\n"
-            webSocket.send(connectFrame)
+                val connectFrame: String = "CONNECT\naccept-version:1.2\nheart-beat:10000,10000\n\n\u0000\n"
+                webSocket.send(connectFrame)
 
-            _connectionState.value = WebSocketManager.ConnectionState.CONNECTED
-            startHeartbeat()
+                _connectionState.value = WebSocketManager.ConnectionState.CONNECTED
+                startHeartbeat()
+
+                CoroutineScope(Dispatchers.IO).launch {
+                    webSocketPreferences.setReconnectEnabled(true)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in onOpen", e)
+            }
         }
 
         override fun onMessage(webSocket: WebSocket, text: String) {
-            _lastMessage.value = text
-            handleMessage(text)
+            try {
+                _lastMessage.value = text
+                handleMessage(text)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error handling message", e)
+            }
         }
 
         override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
@@ -224,35 +316,51 @@ class WebSocketManagerImpl @Inject constructor(
         }
 
         override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
-            Log.d(TAG, "Closing: $reason")
-            _connectionState.value = WebSocketManager.ConnectionState.DISCONNECTED
-            stopHeartbeat()
-            isConnecting.set(false)
+            try {
+                Log.d(TAG, "Closing: $reason")
+                _connectionState.value = WebSocketManager.ConnectionState.DISCONNECTED
+                stopHeartbeat()
+                isConnecting.set(false)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in onClosing", e)
+            }
         }
 
         override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-            Log.d(TAG, "Closed: $reason")
-            _connectionState.value = WebSocketManager.ConnectionState.DISCONNECTED
-            stopHeartbeat()
-            isConnecting.set(false)
-            attemptReconnect()
+            try {
+                Log.d(TAG, "Closed: $reason")
+                _connectionState.value = WebSocketManager.ConnectionState.DISCONNECTED
+                stopHeartbeat()
+                isConnecting.set(false)
+                attemptReconnectWithDelay(DelayConstants.RECONNECT_DELAY)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in onClosed", e)
+            }
         }
 
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-            Log.e(TAG, "WebSocket error: ${t.message}")
-            _connectionState.value = WebSocketManager.ConnectionState.ERROR
-            stopHeartbeat()
-            isConnecting.set(false)
-            attemptReconnect()
+            try {
+                Log.e(TAG, "WebSocket error: ${t.message}", t)
+                _connectionState.value = WebSocketManager.ConnectionState.ERROR
+                stopHeartbeat()
+                isConnecting.set(false)
+                attemptReconnectWithDelay(DelayConstants.RECONNECT_DELAY)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in onFailure", e)
+            }
         }
 
-        private fun attemptReconnect() {
+        private fun attemptReconnectWithDelay(delay: java.time.Duration) {
             if (!isManualDisconnect && !isConnecting.get()) {
-                reconnectJob?.cancel()
-                reconnectJob = CoroutineScope(Dispatchers.IO).launch {
-                    delay(RECONNECT_DELAY)
-                    Log.d(TAG, "Attempting reconnect...")
-                    connectWithBackoff()
+                try {
+                    reconnectJob?.cancel()
+                    reconnectJob = CoroutineScope(Dispatchers.IO).launch {
+                        delay(delay.toMillis())
+                        Log.d(TAG, "Attempting reconnect...")
+                        connectWithBackoff()
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error attempting reconnect", e)
                 }
             }
         }
@@ -260,36 +368,43 @@ class WebSocketManagerImpl @Inject constructor(
 
     private fun handleMessage(text: String) {
         try {
-            val json = gson.fromJson(text, JsonObject::class.java)
-            val type = json.get("type")?.asString
+            val json: JsonObject = gson.fromJson(text, JsonObject::class.java)
+            val type: String? = json.get("type")?.asString
 
             when (type) {
                 "notification" -> {
-                    val data = json.getAsJsonObject("data")
-                    val message = data.get("message")?.asString ?: return
-                    val isRead = data.get("isRead")?.asBoolean ?: false
+                    val data: JsonObject = json.getAsJsonObject("data")
+                    val message: String? = data.get("message")?.asString
+                    if (message == null) return
+                    val isRead: Boolean = data.get("isRead")?.asBoolean ?: false
                     CoroutineScope(Dispatchers.Main).launch {
                         NotificationEventBus.sendNotificationEvent(message, isRead)
                     }
                 }
                 "booking_update" -> {
-                    val data = json.getAsJsonObject("data")
-                    val bookingId = data.get("bookingId")?.asLong ?: return
-                    val status = data.get("status")?.asString ?: return
+                    val data: JsonObject = json.getAsJsonObject("data")
+                    val bookingId: Long? = data.get("bookingId")?.asLong
+                    if (bookingId == null) return
+                    val status: String? = data.get("status")?.asString
+                    if (status == null) return
                     CoroutineScope(Dispatchers.Main).launch {
                         BookingUpdateEventBus.sendEvent(bookingId, status)
                     }
                 }
                 "payment_update" -> {
-                    val data = json.getAsJsonObject("data")
-                    val bookingId = data.get("bookingId")?.asLong ?: return
-                    val paymentStatus = data.get("paymentStatus")?.asString ?: return
+                    val data: JsonObject = json.getAsJsonObject("data")
+                    val bookingId: Long? = data.get("bookingId")?.asLong
+                    if (bookingId == null) return
+                    val paymentStatus: String? = data.get("paymentStatus")?.asString
+                    if (paymentStatus == null) return
                     CoroutineScope(Dispatchers.Main).launch {
                         PaymentUpdateEventBus.sendEvent(bookingId, paymentStatus)
                     }
                 }
                 "connected", "pong" -> { }
-                else -> { }
+                else -> {
+                    Log.d(TAG, "Unknown message type: $type")
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error parsing message", e)

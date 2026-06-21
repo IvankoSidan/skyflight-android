@@ -14,6 +14,7 @@ class FCMTokenPreferences @Inject constructor(
 ) {
     companion object {
         private val FCM_TOKEN_KEY = stringPreferencesKey("fcm_token")
+        private val FCM_TOKEN_SENT_KEY = stringPreferencesKey("fcm_token_sent")
     }
 
     val tokenFlow: Flow<String?> = dataStore.data
@@ -27,6 +28,16 @@ class FCMTokenPreferences @Inject constructor(
         }
     }
 
+    suspend fun markTokenAsSent() {
+        dataStore.edit { preferences ->
+            preferences[FCM_TOKEN_SENT_KEY] = System.currentTimeMillis().toString()
+        }
+    }
+
+    suspend fun isTokenSent(): Boolean {
+        return dataStore.data.first()[FCM_TOKEN_SENT_KEY] != null
+    }
+
     suspend fun getToken(): String? {
         return dataStore.data.first()[FCM_TOKEN_KEY]
     }
@@ -34,6 +45,7 @@ class FCMTokenPreferences @Inject constructor(
     suspend fun clearToken() {
         dataStore.edit { preferences ->
             preferences.remove(FCM_TOKEN_KEY)
+            preferences.remove(FCM_TOKEN_SENT_KEY)
         }
     }
 }

@@ -1,8 +1,10 @@
 package com.wheezy.skyflight.core.common.manager
 
+import android.util.Log
 import com.wheezy.skyflight.core.datastore.preferences.FCMTokenPreferences
 import com.wheezy.skyflight.core.network.api.ApiService
 import com.wheezy.skyflight.core.network.manager.TokenManager
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -12,6 +14,10 @@ class FCMTokenManagerImpl @Inject constructor(
     private val apiService: ApiService,
     private val tokenManager: TokenManager
 ) : FCMTokenManager {
+
+    companion object {
+        private const val TAG = "FCMTokenManager"
+    }
 
     override suspend fun saveTokenLocally(token: String) {
         fcmPreferences.saveToken(token)
@@ -25,15 +31,26 @@ class FCMTokenManagerImpl @Inject constructor(
         val authToken = tokenManager.getToken()
         if (authToken.isNullOrEmpty()) return false
 
+        if (fcmPreferences.isTokenSent()) {
+            val localToken = fcmPreferences.getToken()
+            if (localToken == token) {
+                Log.d(TAG, "Token already sent to server, skipping")
+                return true
+            }
+        }
+
         return try {
             val response = apiService.registerFCMToken(mapOf("token" to token))
             if (response.isSuccessful) {
                 saveTokenLocally(token)
+                fcmPreferences.markTokenAsSent()
+                Log.d(TAG, "Token sent to server and marked as sent")
                 true
             } else {
                 false
             }
         } catch (e: Exception) {
+            Log.e(TAG, "sendTokenToServer error: ${e.message}", e)
             false
         }
     }
@@ -53,7 +70,12 @@ class FCMTokenManagerImpl @Inject constructor(
                 false
             }
         } catch (e: Exception) {
+            Log.e(TAG, "unregisterToken error: ${e.message}", e)
             false
         }
+    }
+
+    suspend fun observeToken(): String? {
+        return fcmPreferences.tokenFlow.first()
     }
 }

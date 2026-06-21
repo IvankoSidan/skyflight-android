@@ -16,9 +16,9 @@ import com.wheezy.skyflight.core.ui.components.GradientButton
 
 @Composable
 fun BookingTopBar(
+    modifier: Modifier = Modifier,
     title: String,
-    onBackClick: () -> Unit,
-    modifier: Modifier = Modifier
+    onBackClick: () -> Unit
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -40,8 +40,8 @@ fun BookingTopBar(
 
 @Composable
 fun BookingLoadingOverlay(
-    message: String = "Processing...",
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    message: String = "Processing..."
 ) {
     Box(
         modifier = modifier
@@ -67,9 +67,9 @@ fun BookingLoadingOverlay(
 
 @Composable
 fun PaymentErrorCard(
+    modifier: Modifier = Modifier,
     error: String,
-    onDismiss: () -> Unit,
-    modifier: Modifier = Modifier
+    onDismiss: () -> Unit
 ) {
     Card(
         modifier = modifier

@@ -1,5 +1,6 @@
 package com.wheezy.skyflight.feature.booking.data.repository
 
+import android.util.Log
 import com.wheezy.skyflight.core.model.BookingStatus
 import com.wheezy.skyflight.core.network.api.ApiService
 import com.wheezy.skyflight.core.network.model.BookingDetailsDTO
@@ -13,6 +14,10 @@ class BookingRepositoryImpl @Inject constructor(
     private val apiService: ApiService
 ) : BookingRepository {
 
+    companion object {
+        private const val TAG = "BookingRepository"
+    }
+
     override suspend fun getMyBookings(): Result<List<BookingDetailsDTO>> {
         return try {
             val response = apiService.getMyBookings()
@@ -22,6 +27,7 @@ class BookingRepositoryImpl @Inject constructor(
                 Result.failure(Exception(response.message()))
             }
         } catch (e: Exception) {
+            Log.e(TAG, "getMyBookings error", e)
             Result.failure(e)
         }
     }
@@ -35,6 +41,7 @@ class BookingRepositoryImpl @Inject constructor(
                 Result.failure(Exception(response.message()))
             }
         } catch (e: Exception) {
+            Log.e(TAG, "updateBookingStatus error", e)
             Result.failure(e)
         }
     }
@@ -48,6 +55,7 @@ class BookingRepositoryImpl @Inject constructor(
                 Result.failure(Exception(response.message()))
             }
         } catch (e: Exception) {
+            Log.e(TAG, "cancelBooking error", e)
             Result.failure(e)
         }
     }
@@ -61,6 +69,7 @@ class BookingRepositoryImpl @Inject constructor(
                 Result.failure(Exception(response.message()))
             }
         } catch (e: Exception) {
+            Log.e(TAG, "deleteBooking error", e)
             Result.failure(e)
         }
     }

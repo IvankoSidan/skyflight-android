@@ -1,7 +1,6 @@
 package com.wheezy.skyflight.core.ui.components
 
 import androidx.compose.animation.*
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -32,7 +31,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.constraintlayout.compose.ConstraintLayout
 import coil.compose.AsyncImage
-import com.wheezy.skyflight.core.common.utils.format
 import com.wheezy.skyflight.core.model.Notification
 import com.wheezy.skyflight.core.model.User
 import com.wheezy.skyflight.core.ui.R

@@ -2,7 +2,6 @@ package com.wheezy.skyflight.feature.invoice.presentation.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.wheezy.skyflight.core.model.Invoice
 import com.wheezy.skyflight.core.model.InvoiceListResponse
 import com.wheezy.skyflight.core.ui.snackbar.SnackbarHelper
 import com.wheezy.skyflight.feature.invoice.domain.usecase.*

@@ -1,9 +1,6 @@
 package com.wheezy.skyflight.feature.booking.domain.usecase
 
-import com.wheezy.skyflight.core.model.FlightModel
-import com.wheezy.skyflight.core.model.Seat
 import com.wheezy.skyflight.feature.booking.domain.repository.PaymentRepository
-import java.math.BigDecimal
 import javax.inject.Inject
 
 class ProcessPaymentUseCase @Inject constructor(
@@ -18,15 +15,9 @@ class ProcessPaymentUseCase @Inject constructor(
         data class Error(val message: String) : Result()
     }
 
-    suspend operator fun invoke(
-        bookingId: Long,
-        flight: FlightModel,
-        selectedSeats: List<Seat>
-    ): Result {
-        val amount = calculateAmount(flight.price, selectedSeats.size)
-
+    suspend operator fun invoke(bookingId: Long, amount: Long): Result {
         return try {
-            val response = paymentRepository.createPaymentSheet(bookingId, amount, "USD")
+            val response = paymentRepository.createPaymentSheet(bookingId, amount, "RUB")
             if (response.isSuccessful && response.body() != null) {
                 val body = response.body()!!
                 Result.Success(
@@ -35,13 +26,10 @@ class ProcessPaymentUseCase @Inject constructor(
                     ephemeralKey = body.ephemeralKey
                 )
             } else {
-                Result.Error(response.message())
+                Result.Error(response.message() ?: "Failed to create payment sheet")
             }
         } catch (e: Exception) {
             Result.Error(e.message ?: "Unknown error")
         }
     }
-
-    private fun calculateAmount(price: BigDecimal, seatCount: Int): Long =
-        price.multiply(BigDecimal(seatCount)).multiply(BigDecimal(100)).longValueExact()
 }

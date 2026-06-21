@@ -56,4 +56,7 @@ dependencies {
     kapt("com.google.dagger:hilt-android-compiler:2.51.1")
 
     implementation("androidx.appcompat:appcompat:1.6.1")
+
+    implementation("androidx.biometric:biometric:1.1.0")
+    implementation("androidx.biometric:biometric-ktx:1.2.0-alpha05")
 }

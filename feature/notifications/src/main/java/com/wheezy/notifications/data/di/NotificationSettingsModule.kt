@@ -16,7 +16,9 @@ private val Context.notificationSettingsDataStore by preferencesDataStore(
     name = "notification_settings"
 )
 
-@Module
+@Module(
+    includes = [NotificationSettingsRepositoryModule::class]
+)
 @InstallIn(SingletonComponent::class)
 object NotificationSettingsModule {
 

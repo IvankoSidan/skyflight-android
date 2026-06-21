@@ -32,21 +32,28 @@ class CardsViewModel @Inject constructor(
     private val _setDefaultCardState = MutableStateFlow<SetDefaultCardState>(SetDefaultCardState.Idle)
     val setDefaultCardState: StateFlow<SetDefaultCardState> = _setDefaultCardState.asStateFlow()
 
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
     fun loadSavedCards() {
         viewModelScope.launch {
             _savedCardsState.value = SavedCardsState.Loading
+            _isLoading.value = true
             val result = getSavedCardsUseCase()
             result.onSuccess { cards ->
                 _savedCardsState.value = SavedCardsState.Success(cards)
             }.onFailure { error ->
                 _savedCardsState.value = SavedCardsState.Error(error.message ?: "Failed to load cards")
+                SnackbarHelper.showError(error.message ?: "Failed to load cards")
             }
+            _isLoading.value = false
         }
     }
 
     fun deleteCard(paymentMethodId: String, onSuccess: () -> Unit) {
         viewModelScope.launch {
             _deleteCardState.value = DeleteCardState.Loading
+            _isLoading.value = true
             val result = deleteCardUseCase(paymentMethodId)
             result.onSuccess {
                 _deleteCardState.value = DeleteCardState.Success(paymentMethodId)
@@ -57,12 +64,14 @@ class CardsViewModel @Inject constructor(
                 _deleteCardState.value = DeleteCardState.Error(error.message ?: "Failed to delete card")
                 SnackbarHelper.showError(error.message ?: "Failed to delete card")
             }
+            _isLoading.value = false
         }
     }
 
     fun setDefaultCard(paymentMethodId: String, onSuccess: () -> Unit) {
         viewModelScope.launch {
             _setDefaultCardState.value = SetDefaultCardState.Loading
+            _isLoading.value = true
             val result = setDefaultCardUseCase(paymentMethodId)
             result.onSuccess {
                 _setDefaultCardState.value = SetDefaultCardState.Success(paymentMethodId)
@@ -73,6 +82,7 @@ class CardsViewModel @Inject constructor(
                 _setDefaultCardState.value = SetDefaultCardState.Error(error.message ?: "Failed to set default card")
                 SnackbarHelper.showError(error.message ?: "Failed to set default card")
             }
+            _isLoading.value = false
         }
     }
 

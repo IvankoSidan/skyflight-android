@@ -18,7 +18,7 @@ class DataCache<K, V> {
     fun get(key: K): V? {
         val entry = cache[key] ?: return null
         if (System.currentTimeMillis() - entry.timestamp > entry.ttl) {
-            cache.remove(key)
+            invalidate(key)
             return null
         }
         return entry.data

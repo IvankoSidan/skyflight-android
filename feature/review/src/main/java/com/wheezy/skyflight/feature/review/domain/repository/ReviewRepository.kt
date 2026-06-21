@@ -11,6 +11,7 @@ interface ReviewRepository {
     suspend fun getFlightReviews(flightId: Long): Result<List<Review>>
     suspend fun getFlightReviewsPaginated(flightId: Long, page: Int, size: Int): Result<ReviewsPageData>
     suspend fun getAirlineRating(airlineName: String): Result<AirlineRating>
+    suspend fun getAirlineReviewsPaginated(airlineName: String, page: Int, size: Int): Result<ReviewsPageData>
     suspend fun getMyReviews(): Result<List<Review>>
     suspend fun canReview(bookingId: Long): Result<Boolean>
 }

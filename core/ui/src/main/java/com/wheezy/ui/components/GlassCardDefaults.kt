@@ -45,16 +45,6 @@ object GlassCardDefaults {
         enableGradient = true,
         enableGlow = true
     )
-
-    val none = GlassCardConfig(
-        blurRadius = 0f,
-        tintAlpha = 0f,
-        strokeAlpha = 0f,
-        cornerRadius = 0.dp,
-        strokeWidth = 0.dp,
-        enableGradient = false,
-        enableGlow = false
-    )
 }
 
 data class GlassCardConfig(

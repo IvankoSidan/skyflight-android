@@ -30,30 +30,59 @@ fun DropDownMenu(
         onExpandedChange = { expanded = !expanded }
     ) {
         if (showLocationLoading) {
-            GlassCard(modifier = Modifier.padding(top = 8.dp).fillMaxWidth().height(55.dp)) {
-                Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
+            GlassCard(
+                modifier = Modifier
+                    .padding(top = 8.dp)
+                    .fillMaxWidth()
+                    .height(55.dp),
+                config = GlassCardDefaults.subtle
+            ) {
+                Box(Modifier.fillMaxSize(), Alignment.Center) {
+                    CircularProgressIndicator()
+                }
             }
         } else {
             GlassCard(
-                modifier = Modifier.padding(top = 8.dp).fillMaxWidth(),
-                blurRadius = 12f, tintAlpha = 0.1f, cornerRadius = 10.dp
+                modifier = Modifier
+                    .padding(top = 8.dp)
+                    .fillMaxWidth(),
+                config = GlassCardDefaults.light.copy(
+                    blurRadius = 12f,
+                    tintAlpha = 0.1f,
+                    cornerRadius = 10.dp
+                )
             ) {
                 OutlinedTextField(
                     value = selectedItem,
                     onValueChange = { },
                     readOnly = true,
                     modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text(hint, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp, fontWeight = FontWeight.Bold) },
+                    placeholder = {
+                        Text(
+                            hint,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    },
                     leadingIcon = {
                         Icon(
                             imageVector = leadingIcon,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(28.dp).padding(start = 4.dp)
+                            modifier = Modifier
+                                .size(28.dp)
+                                .padding(start = 4.dp)
                         )
                     },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                    textStyle = TextStyle(fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface),
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                    },
+                    textStyle = TextStyle(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    ),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Color.Transparent,
                         unfocusedBorderColor = Color.Transparent,
@@ -70,7 +99,14 @@ fun DropDownMenu(
             ) {
                 items.forEach { item ->
                     DropdownMenuItem(
-                        text = { Text(item, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
+                        text = {
+                            Text(
+                                item,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp
+                            )
+                        },
                         onClick = {
                             selectedItem = item
                             expanded = false

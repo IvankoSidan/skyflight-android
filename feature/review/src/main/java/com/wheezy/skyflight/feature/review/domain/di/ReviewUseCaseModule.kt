@@ -1,6 +1,6 @@
 package com.wheezy.skyflight.feature.review.domain.di
 
-import com.wheezy.skyflight.core.network.api.ApiService
+import com.wheezy.skyflight.feature.review.data.di.ReviewRepositoryModule
 import com.wheezy.skyflight.feature.review.domain.repository.ReviewRepository
 import com.wheezy.skyflight.feature.review.domain.usecase.*
 import dagger.Module
@@ -9,52 +9,51 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
-@Module
+@Module(
+    includes = [ReviewRepositoryModule::class]
+)
 @InstallIn(SingletonComponent::class)
 object ReviewUseCaseModule {
 
     @Provides
     @Singleton
-    fun provideCreateReviewUseCase(repository: ReviewRepository): CreateReviewUseCase =
-        CreateReviewUseCase(repository)
+    fun provideCreateReviewUseCase(repo: ReviewRepository): CreateReviewUseCase =
+        CreateReviewUseCase(repo)
 
     @Provides
     @Singleton
-    fun provideUpdateReviewUseCase(repository: ReviewRepository): UpdateReviewUseCase =
-        UpdateReviewUseCase(repository)
+    fun provideUpdateReviewUseCase(repo: ReviewRepository): UpdateReviewUseCase =
+        UpdateReviewUseCase(repo)
 
     @Provides
     @Singleton
-    fun provideDeleteReviewUseCase(repository: ReviewRepository): DeleteReviewUseCase =
-        DeleteReviewUseCase(repository)
+    fun provideDeleteReviewUseCase(repo: ReviewRepository): DeleteReviewUseCase =
+        DeleteReviewUseCase(repo)
 
     @Provides
     @Singleton
-    fun provideGetFlightReviewsUseCase(repository: ReviewRepository): GetFlightReviewsUseCase =
-        GetFlightReviewsUseCase(repository)
+    fun provideGetFlightReviewsUseCase(repo: ReviewRepository): GetFlightReviewsUseCase =
+        GetFlightReviewsUseCase(repo)
 
     @Provides
     @Singleton
-    fun provideGetAirlineRatingUseCase(repository: ReviewRepository): GetAirlineRatingUseCase =
-        GetAirlineRatingUseCase(repository)
+    fun provideGetAirlineRatingUseCase(repo: ReviewRepository): GetAirlineRatingUseCase =
+        GetAirlineRatingUseCase(repo)
 
     @Provides
     @Singleton
-    fun provideGetMyReviewsUseCase(repository: ReviewRepository): GetMyReviewsUseCase =
-        GetMyReviewsUseCase(repository)
+    fun provideGetMyReviewsUseCase(repo: ReviewRepository): GetMyReviewsUseCase =
+        GetMyReviewsUseCase(repo)
 
     @Provides
     @Singleton
-    fun provideCanReviewUseCase(repository: ReviewRepository): CanReviewUseCase =
-        CanReviewUseCase(repository)
+    fun provideCanReviewUseCase(repo: ReviewRepository): CanReviewUseCase =
+        CanReviewUseCase(repo)
 
     @Provides
     @Singleton
-    fun provideGetFlightByIdUseCase(apiService: ApiService): GetFlightByIdUseCase =
-        GetFlightByIdUseCase(apiService)
+    fun provideGetFlightReviewsPaginatedUseCase(repo: ReviewRepository): GetFlightReviewsPaginatedUseCase =
+        GetFlightReviewsPaginatedUseCase(repo)
 
-    @Provides
-    @Singleton
-    fun provideGetFlightReviewsPaginatedUseCase(repository: ReviewRepository): GetFlightReviewsPaginatedUseCase =
-        GetFlightReviewsPaginatedUseCase(repository)
+    // Убираем getAirlineReviewsPaginatedUseCase, так как он не используется
 }

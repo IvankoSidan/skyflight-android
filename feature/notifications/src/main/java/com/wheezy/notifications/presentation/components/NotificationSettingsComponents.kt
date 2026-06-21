@@ -10,6 +10,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wheezy.skyflight.core.ui.components.GlassCard
 import com.wheezy.skyflight.core.ui.components.GlassCardDefaults
+import java.util.Locale
 
 @Composable
 fun SettingsSectionHeader(title: String) {
@@ -136,7 +137,7 @@ fun TimePickerButton(
             )
         ) {
             Text(
-                text = String.format("%02d:00", hour),
+                text = String.format(Locale.getDefault(), "%02d:00", hour),
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold
             )

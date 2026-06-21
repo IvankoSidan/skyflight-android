@@ -1,5 +1,6 @@
 package com.wheezy.skyflight.feature.booking.data.repository
 
+import android.util.Log
 import com.wheezy.skyflight.core.common.network.SmartRetryPolicy
 import com.wheezy.skyflight.core.network.api.ApiService
 import com.wheezy.skyflight.core.network.model.PaymentSheetRequest
@@ -14,6 +15,10 @@ class PaymentRepositoryImpl @Inject constructor(
     private val apiService: ApiService
 ) : PaymentRepository {
 
+    companion object {
+        private const val TAG = "PaymentRepository"
+    }
+
     override suspend fun createPaymentSheet(
         bookingId: Long,
         amount: Long,
@@ -21,7 +26,12 @@ class PaymentRepositoryImpl @Inject constructor(
     ): Response<PaymentSheetResponseDTO> {
         val request = PaymentSheetRequest(bookingId, amount, currency)
         return SmartRetryPolicy.executeWithRetry {
-            apiService.createPaymentSheet(request)
+            try {
+                apiService.createPaymentSheet(request)
+            } catch (e: Exception) {
+                Log.e(TAG, "createPaymentSheet error", e)
+                throw e
+            }
         }
     }
 }

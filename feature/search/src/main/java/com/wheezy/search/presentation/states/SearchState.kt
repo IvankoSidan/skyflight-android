@@ -2,7 +2,10 @@ package com.wheezy.skyflight.feature.search.presentation.states
 
 import com.wheezy.skyflight.core.model.FlightModel
 import com.wheezy.skyflight.core.model.LocationModel
+import com.wheezy.skyflight.core.model.Seat
+import com.wheezy.skyflight.core.model.SeatSelectionState
 import com.wheezy.skyflight.feature.search.domain.model.SearchParams
+import java.math.BigDecimal
 
 sealed class SearchUiState {
     object Loading : SearchUiState()
@@ -26,5 +29,11 @@ data class SearchScreenState(
     val searchParams: SearchParams = SearchParams(),
     val locationsState: SearchUiState = SearchUiState.Loading,
     val classSeatsState: ClassSeatsUiState = ClassSeatsUiState.Loading,
-    val flightsState: FlightsUiState = FlightsUiState.Loading
+    val flightsState: FlightsUiState = FlightsUiState.Loading,
+    val seatSelectionState: SeatSelectionState = SeatSelectionState.Loading,
+    val selectedFlight: FlightModel? = null,
+    val seatList: List<Seat> = emptyList(),
+    val selectedSeats: List<Seat> = emptyList(),
+    val totalPrice: BigDecimal = BigDecimal.ZERO,
+    val reservedSeats: List<String> = emptyList()
 )

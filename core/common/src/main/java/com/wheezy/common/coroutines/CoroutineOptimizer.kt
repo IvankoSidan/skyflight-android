@@ -20,7 +20,7 @@ object CoroutineOptimizer {
     ): List<R> = coroutineScope {
         val channel = Channel<suspend () -> R>(parallelism)
 
-        launch {
+        launch(ioDispatcher) {
             items.forEach { item ->
                 channel.send { transform(item) }
             }
@@ -28,7 +28,7 @@ object CoroutineOptimizer {
         }
 
         (1..parallelism).map { _ ->
-            async {
+            async(computationDispatcher) {
                 val list = mutableListOf<R>()
                 for (task in channel) {
                     list.add(task())

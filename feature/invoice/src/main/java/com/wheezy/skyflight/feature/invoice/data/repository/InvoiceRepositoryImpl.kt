@@ -1,5 +1,6 @@
 package com.wheezy.skyflight.feature.invoice.data.repository
 
+import android.util.Log
 import com.wheezy.skyflight.core.model.Invoice
 import com.wheezy.skyflight.core.model.InvoiceListResponse
 import com.wheezy.skyflight.core.model.TaxRate
@@ -14,6 +15,10 @@ class InvoiceRepositoryImpl @Inject constructor(
     private val invoiceApiService: InvoiceApiService
 ) : InvoiceRepository {
 
+    companion object {
+        private const val TAG = "InvoiceRepository"
+    }
+
     override suspend fun getInvoiceByBookingId(bookingId: Long): Result<Invoice> {
         return try {
             val response = invoiceApiService.getInvoiceByBookingId(bookingId)
@@ -23,6 +28,7 @@ class InvoiceRepositoryImpl @Inject constructor(
                 Result.failure(Exception(response.message()))
             }
         } catch (e: Exception) {
+            Log.e(TAG, "getInvoiceByBookingId error: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -36,6 +42,7 @@ class InvoiceRepositoryImpl @Inject constructor(
                 Result.failure(Exception(response.message()))
             }
         } catch (e: Exception) {
+            Log.e(TAG, "getMyInvoices error: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -49,6 +56,7 @@ class InvoiceRepositoryImpl @Inject constructor(
                 Result.failure(Exception(response.message()))
             }
         } catch (e: Exception) {
+            Log.e(TAG, "downloadInvoice error: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -62,6 +70,7 @@ class InvoiceRepositoryImpl @Inject constructor(
                 Result.failure(Exception(response.message()))
             }
         } catch (e: Exception) {
+            Log.e(TAG, "resendInvoiceEmail error: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -75,6 +84,7 @@ class InvoiceRepositoryImpl @Inject constructor(
                 Result.failure(Exception(response.message()))
             }
         } catch (e: Exception) {
+            Log.e(TAG, "getTaxRates error: ${e.message}", e)
             Result.failure(e)
         }
     }

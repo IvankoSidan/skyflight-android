@@ -39,7 +39,10 @@ dependencies {
     implementation(project(":core:datastore"))
     implementation(project(":core:network"))
     implementation(project(":core:config"))
+    
     implementation(project(":navigation"))
+    implementation("androidx.biometric:biometric:1.1.0")
+    implementation("androidx.biometric:biometric-ktx:1.2.0-alpha05")
 
     implementation(platform("androidx.compose:compose-bom:2024.10.01"))
     implementation("androidx.compose.ui:ui")

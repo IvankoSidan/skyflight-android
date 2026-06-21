@@ -1,5 +1,6 @@
 package com.wheezy.skyflight.feature.booking.data.repository
 
+import android.util.Log
 import com.wheezy.skyflight.core.common.cache.DataCache
 import com.wheezy.skyflight.core.model.WeatherForecast
 import com.wheezy.skyflight.core.model.WeatherModel
@@ -12,6 +13,10 @@ import javax.inject.Singleton
 class WeatherRepositoryImpl @Inject constructor(
     private val weatherApiService: WeatherApiService
 ) : WeatherRepository {
+
+    companion object {
+        private const val TAG = "WeatherRepository"
+    }
 
     private val weatherCache = DataCache<String, WeatherModel>()
     private val forecastCache = DataCache<String, List<WeatherForecast>>()
@@ -39,6 +44,7 @@ class WeatherRepositoryImpl @Inject constructor(
                 Result.failure(Exception(response.message()))
             }
         } catch (e: Exception) {
+            Log.e(TAG, "getCurrentWeather error", e)
             Result.failure(e)
         }
     }
@@ -70,6 +76,7 @@ class WeatherRepositoryImpl @Inject constructor(
                 Result.failure(Exception(response.message()))
             }
         } catch (e: Exception) {
+            Log.e(TAG, "getForecast error", e)
             Result.failure(e)
         }
     }

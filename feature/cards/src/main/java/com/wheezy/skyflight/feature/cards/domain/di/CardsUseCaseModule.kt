@@ -1,5 +1,6 @@
 package com.wheezy.skyflight.feature.cards.domain.di
 
+import com.wheezy.skyflight.feature.cards.data.di.CardsRepositoryModule
 import com.wheezy.skyflight.feature.cards.domain.repository.CardsRepository
 import com.wheezy.skyflight.feature.cards.domain.usecase.DeleteCardUseCase
 import com.wheezy.skyflight.feature.cards.domain.usecase.GetSavedCardsUseCase
@@ -10,7 +11,9 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
-@Module
+@Module(
+    includes = [CardsRepositoryModule::class]
+)
 @InstallIn(SingletonComponent::class)
 object CardsUseCaseModule {
 

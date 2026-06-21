@@ -2,6 +2,7 @@ package com.wheezy.skyflight.feature.notifications.domain.model
 
 import android.os.Parcelable
 import kotlinx.parcelize.Parcelize
+import java.util.Calendar
 
 @Parcelize
 data class NotificationSettings(
@@ -20,13 +21,14 @@ data class NotificationSettings(
     val pushEnabled: Boolean = true,
     val emailEnabled: Boolean = true
 ) : Parcelable {
-    fun isQuietHour(currentHour: Int = java.util.Calendar
-        .getInstance().get(java.util.Calendar.HOUR_OF_DAY)): Boolean {
+
+    fun isQuietHour(currentHour: Int = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)): Boolean {
         if (!quietHoursEnabled) return false
-        return if (quietHoursStart > quietHoursEnd) {
-            currentHour >= quietHoursStart || currentHour < quietHoursEnd
-        } else {
+        if (quietHoursStart == quietHoursEnd) return false
+        return if (quietHoursStart < quietHoursEnd) {
             currentHour in quietHoursStart until quietHoursEnd
+        } else {
+            currentHour in quietHoursStart..23 || currentHour in 0 until quietHoursEnd
         }
     }
 }

@@ -6,7 +6,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.wheezy.skyflight.core.model.TierBenefit
@@ -14,8 +13,8 @@ import com.wheezy.skyflight.core.model.TierBenefit
 @Composable
 fun TierCard(
     tier: TierBenefit,
-    isCurrent: Boolean = false,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isCurrent: Boolean = false
 ) {
     val backgroundColor = when (tier.tier) {
         "BRONZE" -> Color(0xFFCD7F32)

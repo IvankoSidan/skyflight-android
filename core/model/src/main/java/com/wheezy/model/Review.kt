@@ -2,7 +2,9 @@ package com.wheezy.skyflight.core.model
 
 import android.os.Parcelable
 import kotlinx.parcelize.Parcelize
+import kotlinx.parcelize.IgnoredOnParcel
 import java.time.LocalDateTime
+import java.util.Locale
 
 @Parcelize
 data class Review(
@@ -17,7 +19,15 @@ data class Review(
     val createdAt: LocalDateTime,
     val updatedAt: LocalDateTime,
     val canEdit: Boolean = false
-) : Parcelable
+) : Parcelable {
+    @IgnoredOnParcel
+    val formattedRating: String
+        get() = "$rating/5"
+
+    @IgnoredOnParcel
+    val isNew: Boolean
+        get() = createdAt.isAfter(LocalDateTime.now().minusHours(24))
+}
 
 @Parcelize
 data class AirlineRating(
@@ -26,9 +36,17 @@ data class AirlineRating(
     val totalReviews: Int,
     val ratingDistribution: Map<Int, Int>
 ) : Parcelable {
-    val averageRatingFormatted: String = String.format("%.1f", averageRating)
-    val starsCount: Int = averageRating.toInt()
-    val hasHalfStar: Boolean = averageRating - starsCount >= 0.5
+    @IgnoredOnParcel
+    val averageRatingFormatted: String
+        get() = String.format(Locale.US, "%.1f", averageRating)
+
+    @IgnoredOnParcel
+    val starsCount: Int
+        get() = averageRating.toInt()
+
+    @IgnoredOnParcel
+    val hasHalfStar: Boolean
+        get() = averageRating - starsCount >= 0.5
 }
 
 data class CreateReviewRequest(

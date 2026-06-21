@@ -19,8 +19,12 @@ fun AnimatedSnackbarHost(
     ) {
         AnimatedVisibility(
             visible = hostState.currentSnackbarData != null && currentSnackbar != null,
-            enter = slideInVertically { it / 2 } + fadeIn(),
-            exit = slideOutVertically { it / 2 } + fadeOut()
+            enter = slideInVertically(
+                initialOffsetY = { it / 2 }
+            ) + fadeIn(),
+            exit = slideOutVertically(
+                targetOffsetY = { it / 2 }
+            ) + fadeOut()
         ) {
             currentSnackbar?.let {
                 MaterialSnackbar(

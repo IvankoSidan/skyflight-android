@@ -3,9 +3,7 @@ package com.wheezy.skyflight.presentation.components
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -19,13 +17,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.wheezy.skyflight.core.common.state.CanReviewState
 import com.wheezy.skyflight.core.model.FlightModel
+import com.wheezy.skyflight.core.model.SeatSelectionState
 import com.wheezy.skyflight.core.model.ThemeOption
 import com.wheezy.skyflight.core.ui.components.MyBottomBar
 import com.wheezy.skyflight.core.ui.viewmodel.TopBarViewModel
@@ -33,18 +32,21 @@ import com.wheezy.skyflight.feature.auth.presentation.screens.LoginScreen
 import com.wheezy.skyflight.feature.auth.presentation.screens.RegisterScreen
 import com.wheezy.skyflight.feature.auth.presentation.viewmodels.AuthViewModel
 import com.wheezy.skyflight.feature.booking.presentation.screens.BookingHistoryScreen
-import com.wheezy.skyflight.feature.booking.presentation.screens.SeatListScreen
+import com.wheezy.skyflight.feature.booking.presentation.screens.UnifiedBookingScreen
 import com.wheezy.skyflight.feature.booking.presentation.viewmodels.BookingViewModel
 import com.wheezy.skyflight.feature.cards.presentation.screens.SavedCardsScreen
 import com.wheezy.skyflight.feature.invoice.presentation.screens.InvoiceDetailScreen
 import com.wheezy.skyflight.feature.invoice.presentation.screens.InvoicesScreen
 import com.wheezy.skyflight.feature.loyalty.presentation.screens.LoyaltyScreen
 import com.wheezy.skyflight.feature.loyalty.presentation.screens.PointsHistoryScreen
+import com.wheezy.skyflight.feature.loyalty.presentation.viewmodels.LoyaltyViewModel
 import com.wheezy.skyflight.feature.notifications.presentation.screens.NotificationSettingsScreen
 import com.wheezy.skyflight.feature.referral.presentation.screens.ReferralScreen
+import com.wheezy.skyflight.feature.review.presentation.screens.AirlineReviewsScreen
 import com.wheezy.skyflight.feature.review.presentation.screens.CreateReviewScreen
 import com.wheezy.skyflight.feature.review.presentation.screens.FlightReviewsScreen
 import com.wheezy.skyflight.feature.review.presentation.screens.MyReviewsScreen
+import com.wheezy.skyflight.feature.review.presentation.viewmodels.ReviewViewModel
 import com.wheezy.skyflight.feature.search.presentation.screens.ItemListScreen
 import com.wheezy.skyflight.feature.search.presentation.screens.SearchScreen
 import com.wheezy.skyflight.feature.search.presentation.viewmodels.SearchParamsViewModel
@@ -133,6 +135,67 @@ fun AppNavGraph(
                 SavedCardsScreen(navController = navController)
             }
 
+            composable("unified_booking/{flightId}") { backStackEntry ->
+                val flightId = backStackEntry.arguments?.getString("flightId")?.toLongOrNull() ?: 0L
+                val searchViewModel: SearchViewModel = hiltViewModel()
+                val loyaltyViewModel = hiltViewModel<LoyaltyViewModel>()
+                var flight by remember { mutableStateOf<FlightModel?>(null) }
+                var isLoading by remember { mutableStateOf(true) }
+                var error by remember { mutableStateOf<String?>(null) }
+
+                LaunchedEffect(flightId) {
+                    if (flightId > 0) {
+                        try {
+                            searchViewModel.loadFlight(flightId)
+                            searchViewModel.state.collect { currentState ->
+                                flight = currentState.selectedFlight
+                                isLoading = currentState.seatSelectionState is SeatSelectionState.Loading
+                                if (currentState.seatSelectionState is SeatSelectionState.Error) {
+                                    error = (currentState.seatSelectionState as SeatSelectionState.Error).message
+                                }
+                            }
+                        } catch (e: Exception) {
+                            error = e.message ?: "Failed to load flight"
+                            isLoading = false
+                        }
+                    } else {
+                        error = "Invalid flight ID"
+                        isLoading = false
+                    }
+                }
+
+                when {
+                    isLoading -> {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
+                    }
+                    error != null -> {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(text = error ?: "Unknown error")
+                                Button(onClick = { navController.popBackStack() }) {
+                                    Text("Go Back")
+                                }
+                            }
+                        }
+                    }
+                    flight != null -> {
+                        UnifiedBookingScreen(
+                            navController = navController,
+                            flight = flight!!,
+                            seatSelection = searchViewModel,
+                            loyalty = loyaltyViewModel
+                        )
+                    }
+                    else -> {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("Flight not found")
+                        }
+                    }
+                }
+            }
+
             composable(Screen.Main.route) {
                 val searchViewModel: SearchViewModel = hiltViewModel()
 
@@ -156,7 +219,8 @@ fun AppNavGraph(
                     },
                     bottomBar = { MyBottomBar(navController) },
                     onClearAllNotifications = { topBarViewModel.clearAll() },
-                    searchViewModel = searchViewModel
+                    searchViewModel = searchViewModel,
+                    navController = navController
                 )
             }
 
@@ -164,26 +228,6 @@ fun AppNavGraph(
                 ItemListScreen(
                     navController = navController,
                     searchParamsViewModel = searchParamsViewModel
-                )
-            }
-
-            composable(Screen.SelectSeat.route) { backStackEntry ->
-                val flightId = backStackEntry.arguments?.getString(Screen.FLIGHT_ID_ARG)?.toLongOrNull() ?: 0L
-
-                if (flightId <= 0) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("Please select a flight first")
-                    }
-                    return@composable
-                }
-
-                SeatListScreen(
-                    navController = navController,
-                    flightId = flightId,
-                    onBackClick = { navController.popBackStack() }
                 )
             }
 
@@ -239,8 +283,9 @@ fun AppNavGraph(
             }
 
             composable(Screen.CreateReview.route) { backStackEntry ->
-                val bookingId = backStackEntry.arguments?.getString(Screen.BOOKING_ID_ARG)?.toLongOrNull() ?: 0L
+                val bookingId = backStackEntry.arguments?.getString("bookingId")?.toLongOrNull() ?: 0L
                 val bookingViewModel: BookingViewModel = hiltViewModel()
+                val reviewViewModel: ReviewViewModel = hiltViewModel()
 
                 var flightModel by remember { mutableStateOf<FlightModel?>(null) }
                 var isLoading by remember { mutableStateOf(true) }
@@ -248,18 +293,20 @@ fun AppNavGraph(
 
                 LaunchedEffect(bookingId) {
                     if (bookingId > 0) {
-                        isLoading = true
-                        val bookingResult = bookingViewModel.getBookingById(bookingId)
-                        bookingResult.onSuccess { bookingDetails ->
-                            val flight = bookingViewModel.getFlightById(bookingDetails.flightId)
-                            flightModel = flight
-                            isLoading = false
-                        }.onFailure { e ->
-                            error = e.message ?: "Failed to load booking"
-                            isLoading = false
-                        }
+                        reviewViewModel.checkCanReview(bookingId)
+                        bookingViewModel.getBookingById(bookingId)
+                            .onSuccess { bookingDetails ->
+                                flightModel = bookingViewModel.getFlightById(bookingDetails.flightId)
+                                isLoading = false
+                            }
+                            .onFailure { e ->
+                                error = e.message ?: "Failed to load booking"
+                                isLoading = false
+                            }
                     }
                 }
+
+                val canReviewState = reviewViewModel.canReviewState.collectAsState().value
 
                 when {
                     isLoading -> {
@@ -276,27 +323,67 @@ fun AppNavGraph(
                             contentAlignment = Alignment.Center
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("Error: $error")
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Button(onClick = { navController.popBackStack() }) {
+                                Text(text = error ?: "Unknown error")
+                                Button(
+                                    onClick = { navController.popBackStack() }
+                                ) {
                                     Text("Go Back")
                                 }
                             }
                         }
                     }
-                    flightModel != null -> {
-                        CreateReviewScreen(
-                            navController = navController,
-                            flight = flightModel!!,
-                            bookingId = bookingId
-                        )
+                    canReviewState is CanReviewState.Error -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(text = canReviewState.message)
+                                Button(
+                                    onClick = { navController.popBackStack() }
+                                ) {
+                                    Text("Go Back")
+                                }
+                            }
+                        }
+                    }
+                    canReviewState is CanReviewState.Success -> {
+                        if (!canReviewState.canReview) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(text = "You have already reviewed this flight")
+                                    Button(
+                                        onClick = { navController.popBackStack() }
+                                    ) {
+                                        Text("Go Back")
+                                    }
+                                }
+                            }
+                        } else if (flightModel != null) {
+                            CreateReviewScreen(
+                                navController = navController,
+                                flight = flightModel!!,
+                                bookingId = bookingId,
+                                reviewViewModel = reviewViewModel
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("Booking not found")
+                            }
+                        }
                     }
                     else -> {
                         Box(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("Booking not found")
+                            CircularProgressIndicator()
                         }
                     }
                 }
@@ -311,6 +398,16 @@ fun AppNavGraph(
                 FlightReviewsScreen(
                     navController = navController,
                     flightId = flightId,
+                    airlineName = airlineName
+                )
+            }
+
+            composable(Screen.AirlineReviews.route) { backStackEntry ->
+                val airlineName = backStackEntry.arguments?.getString("airlineName")?.let {
+                    android.net.Uri.decode(it)
+                } ?: ""
+                AirlineReviewsScreen(
+                    navController = navController,
                     airlineName = airlineName
                 )
             }

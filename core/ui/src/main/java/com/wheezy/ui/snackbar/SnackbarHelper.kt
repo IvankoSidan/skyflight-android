@@ -12,6 +12,16 @@ object SnackbarHelper {
         )
     }
 
+    fun showLowPriority(message: String) {
+        SnackbarManager.tryShow(
+            AppSnackbar(
+                message = message,
+                type = SnackbarType.INFO,
+                priority = SnackbarPriority.LOW
+            )
+        )
+    }
+
     fun showError(message: String) {
         SnackbarManager.tryShow(
             AppSnackbar(

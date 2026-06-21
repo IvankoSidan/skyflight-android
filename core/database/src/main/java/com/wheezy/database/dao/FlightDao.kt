@@ -19,6 +19,9 @@ interface FlightDao {
     @Query("DELETE FROM cached_flights WHERE cachedAt < :olderThan")
     suspend fun deleteOldFlights(olderThan: Long)
 
+    @Query("SELECT COUNT(*) FROM cached_flights WHERE cachedAt < :olderThan")
+    suspend fun getOldFlightsCount(olderThan: Long): Int
+
     @Query("DELETE FROM cached_flights WHERE searchQueryKey = :queryKey")
     suspend fun deleteFlightsByQuery(queryKey: String)
 

@@ -1,17 +1,39 @@
 package com.wheezy.skyflight.feature.booking.presentation.screens
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.CircularProgressIndicator
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavHostController
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavHostController
 import coil.ImageLoader
 import com.stripe.android.paymentsheet.PaymentSheet
 import com.stripe.android.paymentsheet.PaymentSheetResult
@@ -31,6 +53,7 @@ import com.wheezy.skyflight.feature.booking.presentation.viewmodels.BookingViewM
 import com.wheezy.skyflight.feature.booking.presentation.viewmodels.PaymentViewModel
 import com.wheezy.skyflight.navigation.Screen
 import com.wheezy.skyflight.navigation.navigateAndClearStack
+import com.wheezy.skyflight.navigation.navigateToAirlineReviews
 import com.wheezy.skyflight.navigation.navigateToCreateReview
 import com.wheezy.skyflight.navigation.navigateToInvoiceDetail
 import kotlinx.coroutines.launch
@@ -45,6 +68,7 @@ fun BookingHistoryScreen(
     val bookingListState by bookingViewModel.bookingListState.collectAsState()
     val loadingBookingIds by bookingViewModel.loadingBookingIds.collectAsState()
     val paymentState by paymentViewModel.paymentState.collectAsState()
+    val offlineCount by bookingViewModel.offlineBookingsCount.collectAsState()
     val canReviewMap by bookingViewModel.canReviewMap.collectAsState()
     val imageLoader = ImageLoader.Builder(LocalContext.current).build()
 
@@ -100,6 +124,16 @@ fun BookingHistoryScreen(
 
     LaunchedEffect(Unit) {
         bookingViewModel.loadMyBookings()
+        bookingViewModel.loadOfflineBookingsCount()
+    }
+
+    LaunchedEffect(bookingListState) {
+        if (bookingListState is BookingListState.Success) {
+            val bookings = (bookingListState as BookingListState.Success).bookings
+            bookings.forEach { booking ->
+                bookingViewModel.checkCanReview(booking.bookingId)
+            }
+        }
     }
 
     Scaffold(
@@ -113,6 +147,37 @@ fun BookingHistoryScreen(
                     title = "Booking History",
                     onBackClick = { navController.popBackStack() }
                 )
+
+                if (offlineCount > 0) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("📄", fontSize = 20.sp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text(
+                                    text = "$offlineCount bookings pending sync",
+                                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = "Will sync when internet is available",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
+                    }
+                }
 
                 if (paymentState is PaymentState.Error) {
                     PaymentErrorCard(
@@ -155,18 +220,13 @@ fun BookingHistoryScreen(
                                     val flightModel = item.toFlightModel()
                                     val bookingEntity = item.toBookingEntity()
                                     val canReview = canReviewMap[item.bookingId] ?: false
-
-                                    // Показываем кнопку инвойса только для оплаченных или подтверждённых бронирований
                                     val showInvoice = bookingEntity.status == BookingStatus.PAID ||
                                             bookingEntity.status == BookingStatus.CONFIRMED
-
-                                    LaunchedEffect(item.bookingId) {
-                                        bookingViewModel.checkCanReview(item.bookingId)
-                                    }
 
                                     BookingHistoryItem(
                                         flight = flightModel,
                                         booking = bookingEntity,
+                                        navController = navController,
                                         onCancelClick = { b ->
                                             scope.launch {
                                                 bookingViewModel.cancelOrDeleteBooking(b.id, b.status)
@@ -192,6 +252,9 @@ fun BookingHistoryScreen(
                                         },
                                         onInvoiceClick = {
                                             navController.navigateToInvoiceDetail(item.bookingId)
+                                        },
+                                        onAirlineReviewsClick = {
+                                            navController.navigateToAirlineReviews(flightModel.airlineName)
                                         },
                                         showReviewButton = canReview,
                                         showInvoiceButton = showInvoice,

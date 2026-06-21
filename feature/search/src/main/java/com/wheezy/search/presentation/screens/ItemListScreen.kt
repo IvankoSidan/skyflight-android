@@ -4,7 +4,9 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material.CircularProgressIndicator
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Chair
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -14,19 +16,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavHostController
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavHostController
 import coil.ImageLoader
 import com.wheezy.skyflight.core.ui.components.BackButton
+import com.wheezy.skyflight.core.ui.components.DropDownMenu
 import com.wheezy.skyflight.core.ui.components.EmptyStateScreen
+import com.wheezy.skyflight.core.ui.components.GlassCard
 import com.wheezy.skyflight.core.ui.components.MyBottomBar
 import com.wheezy.skyflight.core.ui.components.WorldBackground
-import com.wheezy.skyflight.core.ui.snackbar.SnackbarHelper
 import com.wheezy.skyflight.feature.search.presentation.components.FlightItem
 import com.wheezy.skyflight.feature.search.presentation.states.FlightsUiState
 import com.wheezy.skyflight.feature.search.presentation.viewmodels.SearchParamsViewModel
 import com.wheezy.skyflight.feature.search.presentation.viewmodels.SearchViewModel
-import com.wheezy.skyflight.navigation.navigateToSelectSeat
 
 @Composable
 fun ItemListScreen(
@@ -40,15 +42,25 @@ fun ItemListScreen(
     val selectedClass by searchParamsViewModel.selectedClass.collectAsState()
 
     val flightsState by searchViewModel.flightsState.collectAsState()
+    val classSeatsState by searchViewModel.classSeatsState.collectAsState()
     val imageLoader = ImageLoader.Builder(LocalContext.current).build()
+
+    var showFilter by remember { mutableStateOf(false) }
+    var filterClass by remember { mutableStateOf("") }
+    var filteredFlights by remember { mutableStateOf<List<com.wheezy.skyflight.core.model.FlightModel>?>(null) }
+
+    val classItems = (classSeatsState as? com.wheezy.skyflight.feature.search.presentation.states.ClassSeatsUiState.Success)?.classSeats.orEmpty()
 
     LaunchedEffect(from, to, selectedClass) {
         if (from.isNotBlank() && to.isNotBlank() && passengers > 0) {
-            searchViewModel.searchFlights(
-                from = from,
-                to = to,
-                classType = selectedClass
-            )
+            searchViewModel.searchFlights(from, to, selectedClass)
+        }
+    }
+
+    LaunchedEffect(flightsState) {
+        if (flightsState is FlightsUiState.Success) {
+            filteredFlights = null
+            filterClass = ""
         }
     }
 
@@ -81,8 +93,51 @@ fun ItemListScreen(
                         textAlign = TextAlign.Center,
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
-                        color = MaterialTheme.colorScheme.onBackground
+                        color = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.weight(1f)
                     )
+
+                    // Кнопка фильтрации с DropDownMenu
+                    IconButton(onClick = { showFilter = !showFilter }) {
+                        Icon(
+                            imageVector = Icons.Default.FilterList,
+                            contentDescription = "Filter",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+
+                if (showFilter && classItems.isNotEmpty()) {
+                    GlassCard(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = "Filter by Class",
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                            DropDownMenu(
+                                items = listOf("All") + classItems,
+                                leadingIcon = Icons.Default.Chair,
+                                hint = "Select class",
+                                showLocationLoading = false,
+                                onItemSelected = { selected ->
+                                    filterClass = if (selected == "All") "" else selected
+                                    val currentState = flightsState
+                                    if (currentState is FlightsUiState.Success) {
+                                        filteredFlights = if (filterClass.isNotEmpty()) {
+                                            currentState.flights.filter { it.classSeat == filterClass }
+                                        } else {
+                                            currentState.flights
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                    }
                 }
 
                 when {
@@ -119,26 +174,22 @@ fun ItemListScreen(
                                     textAlign = TextAlign.Center
                                 )
                                 Spacer(modifier = Modifier.height(16.dp))
-                                Button(
-                                    onClick = {
-                                        searchViewModel.searchFlights(from, to, selectedClass)
-                                    }
-                                ) {
+                                Button(onClick = { searchViewModel.searchFlights(from, to, selectedClass) }) {
                                     Text("Retry")
                                 }
                             }
                         }
                     }
                     flightsState is FlightsUiState.Success -> {
-                        val flights = (flightsState as FlightsUiState.Success).flights
-                        if (flights.isEmpty()) {
+                        val displayFlights = filteredFlights ?: (flightsState as FlightsUiState.Success).flights
+                        if (displayFlights.isEmpty()) {
                             Box(
                                 modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Text(
-                                        text = "No flights found",
+                                        text = if (filterClass.isNotEmpty()) "No flights found for $filterClass" else "No flights found",
                                         color = MaterialTheme.colorScheme.onBackground,
                                         fontSize = 16.sp
                                     )
@@ -156,15 +207,12 @@ fun ItemListScreen(
                                     .fillMaxSize()
                                     .padding(horizontal = 8.dp)
                             ) {
-                                itemsIndexed(flights) { _, flight ->
-                                    val flightId = flight.flightId
+                                itemsIndexed(displayFlights) { _, flight ->
                                     FlightItem(
                                         item = flight,
-                                        onFlightClick = {
-                                            if (flightId != null && flightId > 0) {
-                                                navController.navigateToSelectSeat(flightId)
-                                            } else {
-                                                SnackbarHelper.showError("Invalid flight data")
+                                        onFlightClick = { clickedFlight ->
+                                            clickedFlight.flightId?.let { id ->
+                                                navController.navigate("unified_booking/$id")
                                             }
                                         },
                                         imageLoader = imageLoader

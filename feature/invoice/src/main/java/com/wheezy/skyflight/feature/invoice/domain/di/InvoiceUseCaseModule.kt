@@ -1,5 +1,6 @@
 package com.wheezy.skyflight.feature.invoice.domain.di
 
+import com.wheezy.skyflight.feature.invoice.data.di.InvoiceRepositoryModule
 import com.wheezy.skyflight.feature.invoice.domain.repository.InvoiceRepository
 import com.wheezy.skyflight.feature.invoice.domain.usecase.*
 import dagger.Module
@@ -8,7 +9,9 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
-@Module
+@Module(
+    includes = [InvoiceRepositoryModule::class]
+)
 @InstallIn(SingletonComponent::class)
 object InvoiceUseCaseModule {
 

@@ -1,5 +1,6 @@
 package com.wheezy.skyflight.feature.auth.data.repository
 
+import android.util.Log
 import com.wheezy.skyflight.core.datastore.preferences.AuthPreferences
 import com.wheezy.skyflight.core.model.User
 import com.wheezy.skyflight.core.network.api.ApiService
@@ -19,18 +20,29 @@ class AuthRepositoryImpl @Inject constructor(
     private val tokenManager: TokenManager
 ) : AuthRepository {
 
+    companion object {
+        private const val TAG = "AuthRepository"
+    }
+
     override suspend fun login(dto: UserLoginDto): Result<User> {
         return try {
             val response = apiService.login(dto)
             if (response.isSuccessful && response.body() != null) {
                 val authResponse = response.body()!!
                 tokenManager.updateToken(authResponse.token)
-                authPreferences.saveAuthData(authResponse.token, authResponse.user.id)
+                authPreferences.saveAuthData(
+                    token = authResponse.token,
+                    userId = authResponse.user.id,
+                    email = authResponse.user.email,
+                    name = authResponse.user.name,
+                    profilePicture = authResponse.user.profilePicture
+                )
                 Result.success(authResponse.user.toDomain())
             } else {
                 Result.failure(Exception(response.message()))
             }
         } catch (e: Exception) {
+            Log.e(TAG, "login error: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -41,12 +53,19 @@ class AuthRepositoryImpl @Inject constructor(
             if (response.isSuccessful && response.body() != null) {
                 val authResponse = response.body()!!
                 tokenManager.updateToken(authResponse.token)
-                authPreferences.saveAuthData(authResponse.token, authResponse.user.id)
+                authPreferences.saveAuthData(
+                    token = authResponse.token,
+                    userId = authResponse.user.id,
+                    email = authResponse.user.email,
+                    name = authResponse.user.name,
+                    profilePicture = authResponse.user.profilePicture
+                )
                 Result.success(authResponse.user.toDomain())
             } else {
                 Result.failure(Exception(response.message()))
             }
         } catch (e: Exception) {
+            Log.e(TAG, "register error: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -57,12 +76,19 @@ class AuthRepositoryImpl @Inject constructor(
             if (response.isSuccessful && response.body() != null) {
                 val authResponse = response.body()!!
                 tokenManager.updateToken(authResponse.token)
-                authPreferences.saveAuthData(authResponse.token, authResponse.user.id)
+                authPreferences.saveAuthData(
+                    token = authResponse.token,
+                    userId = authResponse.user.id,
+                    email = authResponse.user.email,
+                    name = authResponse.user.name,
+                    profilePicture = authResponse.user.profilePicture
+                )
                 Result.success(authResponse.user.toDomain())
             } else {
                 Result.failure(Exception(response.message()))
             }
         } catch (e: Exception) {
+            Log.e(TAG, "googleAuth error: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -76,6 +102,7 @@ class AuthRepositoryImpl @Inject constructor(
                 null
             }
         } catch (e: Exception) {
+            Log.e(TAG, "getCurrentUser error: ${e.message}", e)
             null
         }
     }
@@ -91,12 +118,19 @@ class AuthRepositoryImpl @Inject constructor(
             if (response.isSuccessful && response.body() != null) {
                 val authResponse = response.body()!!
                 tokenManager.updateToken(authResponse.token)
-                authPreferences.saveAuthData(authResponse.token, authResponse.user.id)
+                authPreferences.saveAuthData(
+                    token = authResponse.token,
+                    userId = authResponse.user.id,
+                    email = authResponse.user.email,
+                    name = authResponse.user.name,
+                    profilePicture = authResponse.user.profilePicture
+                )
                 authResponse.token
             } else {
                 null
             }
         } catch (e: Exception) {
+            Log.e(TAG, "refreshToken error: ${e.message}", e)
             null
         }
     }

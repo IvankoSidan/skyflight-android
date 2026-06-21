@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.StarHalf
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.Icon
@@ -20,14 +21,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wheezy.skyflight.core.model.AirlineRating
+import com.wheezy.skyflight.core.model.Review
 
 @Composable
 fun RatingStars(
     rating: Int,
+    modifier: Modifier = Modifier,
     maxStars: Int = 5,
     size: Int = 24,
-    color: Color = MaterialTheme.colorScheme.primary,
-    modifier: Modifier = Modifier
+    color: Color = MaterialTheme.colorScheme.primary
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -48,12 +50,46 @@ fun RatingStars(
 }
 
 @Composable
+fun RatingStarsWithHalf(
+    airlineRating: AirlineRating,
+    modifier: Modifier = Modifier,
+    maxStars: Int = 5,
+    size: Int = 24,
+    color: Color = MaterialTheme.colorScheme.primary
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+    ) {
+        val fullStars = airlineRating.starsCount
+        val hasHalf = airlineRating.hasHalfStar
+
+        repeat(maxStars) { index ->
+            val icon = when {
+                index < fullStars -> Icons.Filled.Star
+                index == fullStars && hasHalf -> Icons.AutoMirrored.Filled.StarHalf
+                else -> Icons.Filled.StarBorder
+            }
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(size.dp)
+            )
+            if (index < maxStars - 1) {
+                Spacer(modifier = Modifier.width(2.dp))
+            }
+        }
+    }
+}
+
+@Composable
 fun RatingStarsInteractive(
     rating: Int,
     onRatingChanged: (Int) -> Unit,
+    modifier: Modifier = Modifier,
     maxStars: Int = 5,
-    size: Int = 32,
-    modifier: Modifier = Modifier
+    size: Int = 32
 ) {
     Row(
         horizontalArrangement = Arrangement.Center,
@@ -90,8 +126,8 @@ fun AverageRatingDisplay(
             style = MaterialTheme.typography.headlineMedium,
             color = MaterialTheme.colorScheme.primary
         )
-        RatingStars(
-            rating = rating.starsCount,
+        RatingStarsWithHalf(
+            airlineRating = rating,
             size = 16
         )
         Text(
@@ -158,6 +194,48 @@ fun RatingDistributionChart(
                     textAlign = androidx.compose.ui.text.style.TextAlign.End
                 )
             }
+        }
+    }
+}
+
+@Composable
+fun ReviewMetaInfo(
+    review: Review,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = modifier
+    ) {
+        if (review.isNew) {
+            Box(
+                modifier = Modifier
+                    .background(
+                        color = MaterialTheme.colorScheme.primary,
+                        shape = RoundedCornerShape(4.dp)
+                    )
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
+            ) {
+                Text(
+                    text = "NEW",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+            }
+        }
+        Text(
+            text = "⭐ ${review.formattedRating}",
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        if (review.canEdit) {
+            Text(
+                text = "✏️ Can edit",
+                fontSize = 10.sp,
+                color = MaterialTheme.colorScheme.tertiary
+            )
         }
     }
 }

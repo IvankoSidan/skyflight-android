@@ -1,7 +1,7 @@
 package com.wheezy.skyflight.core.ui.snackbar
 
-import androidx.compose.material3.SnackbarDuration as MaterialDuration
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarDuration as MaterialDuration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -14,10 +14,11 @@ class SnackbarController(
 
     fun process(snackbar: AppSnackbar) {
         scope.launch {
-
             if (currentPriority == SnackbarPriority.HIGH &&
                 snackbar.priority != SnackbarPriority.HIGH
-            ) return@launch
+            ) {
+                return@launch
+            }
 
             currentPriority = snackbar.priority
 

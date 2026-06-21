@@ -2,7 +2,7 @@ package com.wheezy.skyflight.feature.booking.presentation.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.wheezy.skyflight.core.model.Booking
+import com.wheezy.skyflight.core.common.event.PaymentUpdateEventBus
 import com.wheezy.skyflight.core.model.FlightModel
 import com.wheezy.skyflight.core.model.Seat
 import com.wheezy.skyflight.core.ui.snackbar.SnackbarHelper
@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.math.BigDecimal
 import javax.inject.Inject
 
 @HiltViewModel
@@ -23,6 +24,27 @@ class PaymentViewModel @Inject constructor(
     private val _paymentState = MutableStateFlow<PaymentState>(PaymentState.Idle)
     val paymentState: StateFlow<PaymentState> = _paymentState.asStateFlow()
 
+    init {
+        viewModelScope.launch {
+            PaymentUpdateEventBus.events.collect { event ->
+                event?.let {
+                    when (it.paymentStatus.uppercase()) {
+                        "SUCCESS", "COMPLETED" -> {
+                            handleSuccess()
+                            SnackbarHelper.showSuccess("Payment confirmed by server")
+                        }
+                        "FAILED", "ERROR" -> {
+                            handleFailure("Payment failed on server side")
+                        }
+                        "PENDING" -> {
+                            SnackbarHelper.showInfo("Payment is being processed...")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     fun processPayment(
         flight: FlightModel,
         selectedSeats: List<Seat>,
@@ -30,9 +52,31 @@ class PaymentViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             _paymentState.value = PaymentState.Loading
+            val amount = flight.price
+                .multiply(BigDecimal(selectedSeats.size))
+                .multiply(BigDecimal(100))
+                .toLong()
+            when (val result = processPaymentUseCase(bookingId, amount)) {
+                is ProcessPaymentUseCase.Result.Success -> {
+                    _paymentState.value = PaymentState.Prepared(
+                        clientSecret = result.clientSecret,
+                        customerId = result.customerId ?: "",
+                        ephemeralKey = result.ephemeralKey ?: ""
+                    )
+                    SnackbarHelper.showInfo("Payment prepared")
+                }
+                is ProcessPaymentUseCase.Result.Error -> {
+                    _paymentState.value = PaymentState.Error(result.message)
+                    SnackbarHelper.showError(result.message)
+                }
+            }
+        }
+    }
 
-            val result = processPaymentUseCase(bookingId, flight, selectedSeats)
-            when (result) {
+    fun processPaymentWithAmount(bookingId: Long, amount: Long) {
+        viewModelScope.launch {
+            _paymentState.value = PaymentState.Loading
+            when (val result = processPaymentUseCase(bookingId, amount)) {
                 is ProcessPaymentUseCase.Result.Success -> {
                     _paymentState.value = PaymentState.Prepared(
                         clientSecret = result.clientSecret,

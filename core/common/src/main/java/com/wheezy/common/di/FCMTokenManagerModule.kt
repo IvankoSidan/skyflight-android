@@ -12,6 +12,7 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 abstract class FCMTokenManagerModule {
 
+    @Suppress("unused")
     @Binds
     @Singleton
     abstract fun bindFCMTokenManager(

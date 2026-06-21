@@ -1,5 +1,6 @@
 package com.wheezy.skyflight.feature.booking.data.repository
 
+import android.util.Log
 import com.wheezy.skyflight.core.common.cache.DataCache
 import com.wheezy.skyflight.core.common.network.SmartRetryPolicy
 import com.wheezy.skyflight.core.model.FlightModel
@@ -17,6 +18,10 @@ class FlightRepositoryImpl @Inject constructor(
     private val apiService: ApiService
 ) : FlightRepository {
 
+    companion object {
+        private const val TAG = "FlightRepository"
+    }
+
     private val flightCache = DataCache<Long, FlightModel>()
 
     override suspend fun createBooking(bookingDto: BookingRequestDto): Response<BookingResponseDTO> {
@@ -24,6 +29,7 @@ class FlightRepositoryImpl @Inject constructor(
             try {
                 apiService.createBooking(bookingDto)
             } catch (e: Exception) {
+                Log.e(TAG, "createBooking error", e)
                 Response.error(500, "Error creating booking".toResponseBody())
             }
         }
@@ -53,6 +59,7 @@ class FlightRepositoryImpl @Inject constructor(
                 null
             }
         } catch (e: Exception) {
+            Log.e(TAG, "getFlightById error", e)
             null
         }
     }

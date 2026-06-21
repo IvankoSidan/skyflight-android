@@ -64,6 +64,5 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.5.0")
     implementation("io.github.muddz:styleabletoast:2.4.0")
 
-    // DataStore
     implementation("androidx.datastore:datastore-preferences:1.0.0")
 }

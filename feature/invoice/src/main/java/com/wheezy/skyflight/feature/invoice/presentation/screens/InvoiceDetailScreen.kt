@@ -3,9 +3,6 @@ package com.wheezy.skyflight.feature.invoice.presentation.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Email
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,6 +22,7 @@ import com.wheezy.skyflight.feature.invoice.presentation.states.InvoiceDetailSta
 import com.wheezy.skyflight.feature.invoice.presentation.states.ResendEmailState
 import com.wheezy.skyflight.feature.invoice.presentation.viewmodels.InvoiceViewModel
 import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.seconds
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,39 +38,38 @@ fun InvoiceDetailScreen(
     var showSuccessDialog by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // Загружаем инвойс при входе
     LaunchedEffect(bookingId) {
         viewModel.resetInvoices()
         viewModel.loadInvoiceByBookingId(bookingId)
     }
 
-    // Обработка успешной отправки email
     LaunchedEffect(resendEmailState) {
         when (val state = resendEmailState) {
+
             is ResendEmailState.Success -> {
                 showSuccessDialog = true
-                delay(2000)
+                delay(2.seconds)
                 showSuccessDialog = false
                 viewModel.clearResendEmailState()
             }
+
             is ResendEmailState.Error -> {
                 errorMessage = state.message
-                delay(3000)
+                delay(3.seconds)
                 errorMessage = null
                 viewModel.clearResendEmailState()
             }
-            else -> {}
+
+            else -> Unit
         }
     }
 
-    // Обработка скачивания
     LaunchedEffect(downloadState) {
-        when (val state = downloadState) {
+        when (downloadState) {
             is DownloadInvoiceState.Success -> {
-                // Скачивание обрабатывается в InvoicesScreen
                 viewModel.clearDownloadState()
             }
-            else -> {}
+            else -> Unit
         }
     }
 
@@ -80,13 +77,16 @@ fun InvoiceDetailScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Invoice Details", fontWeight = FontWeight.Bold) },
-                navigationIcon = { BackButton(onClick = { navController.popBackStack() }) },
+                navigationIcon = {
+                    BackButton(onClick = { navController.popBackStack() })
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
                 )
             )
         }
     ) { padding ->
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -95,6 +95,7 @@ fun InvoiceDetailScreen(
             WorldBackground(modifier = Modifier.align(Alignment.TopCenter))
 
             when (val state = invoiceDetailState) {
+
                 is InvoiceDetailState.Loading -> {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -119,15 +120,21 @@ fun InvoiceDetailScreen(
                                 color = MaterialTheme.colorScheme.error,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )
+
                             Spacer(modifier = Modifier.height(16.dp))
+
                             Button(onClick = {
                                 viewModel.resetInvoices()
                                 viewModel.loadInvoiceByBookingId(bookingId)
                             }) {
                                 Text("Retry")
                             }
+
                             Spacer(modifier = Modifier.height(8.dp))
-                            TextButton(onClick = { navController.popBackStack() }) {
+
+                            TextButton(onClick = {
+                                navController.popBackStack()
+                            }) {
                                 Text("Go Back")
                             }
                         }
@@ -135,7 +142,11 @@ fun InvoiceDetailScreen(
                 }
 
                 is InvoiceDetailState.Success -> {
+
                     val invoice = state.invoice
+
+                    val download = downloadState
+                    val resend = resendEmailState
 
                     Column(
                         modifier = Modifier
@@ -144,54 +155,51 @@ fun InvoiceDetailScreen(
                             .padding(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // Информация об инвойсе
+
                         InvoiceSummaryCard(invoice = invoice)
 
                         Spacer(modifier = Modifier.height(24.dp))
 
-                        // Кнопки действий
                         GlassCard(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
+
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(16.dp),
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                // Кнопка скачивания
+
                                 GradientButton(
                                     onClick = {
                                         viewModel.downloadInvoice(invoice.id)
                                     },
-                                    text = if (downloadState is DownloadInvoiceState.Loading) "Downloading..." else "Download PDF",
-                                    colors = listOf(
-                                        MaterialTheme.colorScheme.primary,
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
-                                    ),
-                                    enabled = downloadState !is DownloadInvoiceState.Loading,
+                                    text = if (download is DownloadInvoiceState.Loading)
+                                        "Downloading..."
+                                    else
+                                        "Download PDF",
+                                    enabled = download !is DownloadInvoiceState.Loading,
                                     modifier = Modifier.fillMaxWidth()
                                 )
 
-                                // Кнопка повторной отправки email
                                 GradientButton(
                                     onClick = {
                                         viewModel.resendInvoiceEmail(invoice.bookingId)
                                     },
-                                    text = if (resendEmailState is ResendEmailState.Loading) "Sending..." else "Resend Email",
-                                    colors = listOf(
-                                        MaterialTheme.colorScheme.secondary,
-                                        MaterialTheme.colorScheme.secondary.copy(alpha = 0.7f)
-                                    ),
-                                    enabled = resendEmailState !is ResendEmailState.Loading,
+                                    text = if (resend is ResendEmailState.Loading)
+                                        "Sending..."
+                                    else
+                                        "Resend Email",
+                                    enabled = resend !is ResendEmailState.Loading,
                                     modifier = Modifier.fillMaxWidth()
                                 )
                             }
                         }
 
-                        // Сообщение об ошибке
                         if (errorMessage != null) {
                             Spacer(modifier = Modifier.height(16.dp))
+
                             Surface(
                                 shape = MaterialTheme.shapes.small,
                                 color = MaterialTheme.colorScheme.errorContainer
@@ -210,7 +218,6 @@ fun InvoiceDetailScreen(
         }
     }
 
-    // Диалог успеха
     if (showSuccessDialog) {
         AlertDialog(
             onDismissRequest = { showSuccessDialog = false },

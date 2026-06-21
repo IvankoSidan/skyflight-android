@@ -22,10 +22,12 @@ import com.wheezy.skyflight.core.ui.components.GlassCardDefaults
 import com.wheezy.skyflight.core.ui.components.WorldBackground
 import com.wheezy.skyflight.feature.review.presentation.components.RatingStars
 import com.wheezy.skyflight.feature.review.presentation.components.RatingStarsInteractive
+import com.wheezy.skyflight.feature.review.presentation.components.ReviewMetaInfo
 import com.wheezy.skyflight.feature.review.presentation.states.DeleteReviewUiState
 import com.wheezy.skyflight.feature.review.presentation.states.ReviewsUiState
 import com.wheezy.skyflight.feature.review.presentation.states.UpdateReviewUiState
 import com.wheezy.skyflight.feature.review.presentation.viewmodels.ReviewViewModel
+import com.wheezy.skyflight.navigation.navigateToAirlineReviews
 import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -235,6 +237,7 @@ fun MyReviewsScreen(
                                 MyReviewCard(
                                     review = review,
                                     dateFormatter = dateFormatter,
+                                    navController = navController,
                                     onEditClick = {
                                         editingReview = review
                                         editRating = review.rating
@@ -254,10 +257,13 @@ fun MyReviewsScreen(
     }
 }
 
+// В MyReviewsScreen.kt заменить MyReviewCard
+
 @Composable
 fun MyReviewCard(
     review: Review,
     dateFormatter: DateTimeFormatter,
+    navController: NavController,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit,
     canEdit: Boolean,
@@ -289,14 +295,17 @@ fun MyReviewCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-
-                RatingStars(
-                    rating = review.rating,
-                    size = 20
-                )
+                RatingStars(review.rating, size = 20)
             }
 
             Spacer(modifier = Modifier.height(12.dp))
+
+            ReviewMetaInfo(
+                review = review,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
 
             Text(
                 text = "Booking #${review.bookingId}",
@@ -313,8 +322,22 @@ fun MyReviewCard(
                 )
             }
 
+            Spacer(modifier = Modifier.height(8.dp))
+            TextButton(
+                onClick = {
+                    navController.navigateToAirlineReviews(review.airlineName)
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "View All ${review.airlineName} Reviews",
+                    color = MaterialTheme.colorScheme.primary,
+                    fontSize = 13.sp
+                )
+            }
+
             if (canEdit) {
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End

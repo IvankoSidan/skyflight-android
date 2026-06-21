@@ -2,6 +2,7 @@ package com.wheezy.skyflight.presentation.screens
 
 import android.Manifest
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -19,11 +20,15 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.rememberNavController
 import com.wheezy.skyflight.core.common.manager.NetworkMonitor
+import com.wheezy.skyflight.core.common.manager.NotificationSubscriptionManager
+import com.wheezy.skyflight.core.common.security.SecurityManager
 import com.wheezy.skyflight.core.ui.components.NetworkSnackbar
 import com.wheezy.skyflight.core.ui.snackbar.AppSnackbar
 import com.wheezy.skyflight.core.ui.snackbar.CustomSnackBarHost
+import com.wheezy.skyflight.core.ui.snackbar.SnackbarController
 import com.wheezy.skyflight.core.ui.snackbar.SnackbarManager
 import com.wheezy.skyflight.core.ui.theme.MyAppTheme
 import com.wheezy.skyflight.core.ui.viewmodel.ThemeViewModel
@@ -41,6 +46,12 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var networkMonitor: NetworkMonitor
+
+    @Inject
+    lateinit var securityManager: SecurityManager
+
+    @Inject
+    lateinit var notificationSubscriptionManager: NotificationSubscriptionManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -61,6 +72,24 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        lifecycleScope.launch {
+            securityManager.securityStatus.collect { status ->
+                when (status) {
+                    is SecurityManager.SecurityStatus.Compromised -> {
+                        showSecurityWarning(status.reason)
+                    }
+                    is SecurityManager.SecurityStatus.Emulator -> {
+                        showEmulatorWarning()
+                    }
+                    else -> { /* Secure */ }
+                }
+            }
+        }
+
+        if (!securityManager.isSecure()) {
+            showSecurityDialog()
+        }
+
         setContent {
             StatusTopBarColor()
 
@@ -70,6 +99,14 @@ class MainActivity : ComponentActivity() {
             val context = LocalContext.current
             val snackbarHostState = remember { SnackbarHostState() }
             var currentSnackbar by remember { mutableStateOf<AppSnackbar?>(null) }
+            val scope = rememberCoroutineScope()
+
+            val snackbarController = remember {
+                SnackbarController(
+                    hostState = snackbarHostState,
+                    scope = scope
+                )
+            }
 
             DisposableEffect(Unit) {
                 topBarViewModel.registerReceiver(context)
@@ -79,14 +116,13 @@ class MainActivity : ComponentActivity() {
             }
 
             LaunchedEffect(Unit) {
+                notificationSubscriptionManager.subscribeToNotifications()
+                notificationSubscriptionManager.subscribeToBookingUpdates()
+
                 launch {
                     SnackbarManager.events.collectLatest { snackbar ->
                         currentSnackbar = snackbar
-                        try {
-                            snackbarHostState.showSnackbar(snackbar.message)
-                        } finally {
-                            currentSnackbar = null
-                        }
+                        snackbarController.process(snackbar)
                     }
                 }
             }
@@ -120,6 +156,37 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        notificationSubscriptionManager.unsubscribeFromAll()
+    }
+
+    private fun showSecurityDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Security Warning")
+            .setMessage("Your device appears to be compromised (rooted or running modified software).\n\nFor your security, some features may be limited.\n\nContinue at your own risk.")
+            .setPositiveButton("Continue") { _, _ -> }
+            .setNegativeButton("Exit") { _, _ -> finish() }
+            .setCancelable(false)
+            .show()
+    }
+
+    private fun showSecurityWarning(reason: String) {
+        AlertDialog.Builder(this)
+            .setTitle("Security Warning")
+            .setMessage("Your device is compromised: $reason")
+            .setPositiveButton("OK") { _, _ -> }
+            .show()
+    }
+
+    private fun showEmulatorWarning() {
+        AlertDialog.Builder(this)
+            .setTitle("Emulator Detected")
+            .setMessage("Running on emulator. Some features may be limited.")
+            .setPositiveButton("OK") { _, _ -> }
+            .show()
     }
 }
 

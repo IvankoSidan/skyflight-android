@@ -1,8 +1,11 @@
 package com.wheezy.skyflight.feature.auth.domain.di
 
+import com.wheezy.skyflight.core.common.di.FCMTokenManagerModule
+import com.wheezy.skyflight.core.common.di.WebSocketModule
 import com.wheezy.skyflight.core.common.manager.FCMTokenManager
 import com.wheezy.skyflight.core.common.manager.WebSocketManager
 import com.wheezy.skyflight.core.network.manager.TokenManager
+import com.wheezy.skyflight.feature.auth.data.di.AuthRepositoryModule
 import com.wheezy.skyflight.feature.auth.domain.repository.AuthRepository
 import com.wheezy.skyflight.feature.auth.domain.usecase.*
 import dagger.Module
@@ -11,7 +14,13 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
-@Module
+@Module(
+    includes = [
+        AuthRepositoryModule::class,
+        FCMTokenManagerModule::class,
+        WebSocketModule::class
+    ]
+)
 @InstallIn(SingletonComponent::class)
 object AuthUseCaseModule {
 

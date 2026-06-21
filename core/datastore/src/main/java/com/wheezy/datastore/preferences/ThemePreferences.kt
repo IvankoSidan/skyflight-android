@@ -12,21 +12,21 @@ import javax.inject.Inject
 class ThemePreferences @Inject constructor(
     private val dataStore: DataStore<Preferences>
 ) {
-    private val THEME_KEY = stringPreferencesKey("current_theme")
+    private val themeKey = stringPreferencesKey("current_theme")
 
     val currentTheme: Flow<ThemeOption> = dataStore.data
         .map { prefs ->
-            val themeName = prefs[THEME_KEY] ?: ThemeOption.Auto.name
+            val themeName = prefs[themeKey] ?: ThemeOption.Auto.name
             try {
                 ThemeOption.valueOf(themeName)
-            } catch (e: IllegalArgumentException) {
+            } catch (_: IllegalArgumentException) {
                 ThemeOption.Auto
             }
         }
 
     suspend fun setTheme(theme: ThemeOption) {
         dataStore.edit { prefs ->
-            prefs[THEME_KEY] = theme.name
+            prefs[themeKey] = theme.name
         }
     }
 }

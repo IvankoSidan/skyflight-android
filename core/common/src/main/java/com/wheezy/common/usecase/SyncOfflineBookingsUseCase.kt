@@ -1,11 +1,11 @@
 package com.wheezy.skyflight.core.common.usecase
 
+import android.util.Log
 import com.wheezy.skyflight.core.common.manager.NetworkMonitor
-import com.wheezy.skyflight.core.common.manager.TokenManager
 import com.wheezy.skyflight.core.database.dao.OfflineBookingDao
 import com.wheezy.skyflight.core.network.api.ApiService
+import com.wheezy.skyflight.core.network.manager.TokenManager
 import com.wheezy.skyflight.core.network.model.BookingRequestDto
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
@@ -21,6 +21,10 @@ class SyncOfflineBookingsUseCase @Inject constructor(
     private val tokenManager: TokenManager
 ) {
 
+    companion object {
+        private const val TAG = "SyncOfflineBookingsUseCase"
+    }
+
     sealed class SyncStatus {
         object Idle : SyncStatus()
         object InProgress : SyncStatus()
@@ -28,8 +32,8 @@ class SyncOfflineBookingsUseCase @Inject constructor(
         data class Error(val message: String) : SyncStatus()
     }
 
-    private val _syncStatus = MutableStateFlow<SyncStatus>(SyncStatus.Idle)
-    val syncStatus: Flow<SyncStatus> = _syncStatus.asStateFlow()
+    private val _syncStatus: MutableStateFlow<SyncStatus> = MutableStateFlow<SyncStatus>(SyncStatus.Idle)
+    val syncStatus = _syncStatus.asStateFlow()
 
     suspend operator fun invoke(): Result<Int> = withContext(Dispatchers.IO) {
         if (!networkMonitor.isConnected.value) {
@@ -74,7 +78,7 @@ class SyncOfflineBookingsUseCase @Inject constructor(
                         )
                     )
 
-                    if (response.isSuccessful) {
+                    if (response.isSuccessful && response.body() != null) {
                         offlineBookingDao.deleteBookingById(booking.id)
                         syncedCount++
                     } else {
@@ -86,6 +90,7 @@ class SyncOfflineBookingsUseCase @Inject constructor(
                         )
                     }
                 } catch (e: Exception) {
+                    Log.e(TAG, "Error syncing booking", e)
                     offlineBookingDao.updateBooking(
                         booking.copy(
                             retryCount = booking.retryCount + 1,
@@ -102,6 +107,7 @@ class SyncOfflineBookingsUseCase @Inject constructor(
             Result.success(syncedCount)
 
         } catch (e: Exception) {
+            Log.e(TAG, "Error during sync", e)
             _syncStatus.value = SyncStatus.Error(e.message ?: "Unknown error")
             Result.failure(e)
         }

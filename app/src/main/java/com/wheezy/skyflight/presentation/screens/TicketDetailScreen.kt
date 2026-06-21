@@ -18,6 +18,7 @@ import coil.ImageLoader
 import com.stripe.android.paymentsheet.PaymentSheet
 import com.stripe.android.paymentsheet.PaymentSheetResult
 import com.stripe.android.paymentsheet.rememberPaymentSheet
+import com.wheezy.common.state.PointsBalanceState
 import com.wheezy.skyflight.core.common.utils.DebounceHelper
 import com.wheezy.skyflight.core.model.BookingStatus
 import com.wheezy.skyflight.core.ui.components.EmptyStateScreen
@@ -34,7 +35,6 @@ import com.wheezy.skyflight.feature.booking.presentation.states.PaymentState
 import com.wheezy.skyflight.feature.booking.presentation.viewmodels.BookingViewModel
 import com.wheezy.skyflight.feature.booking.presentation.viewmodels.PaymentViewModel
 import com.wheezy.skyflight.feature.booking.presentation.viewmodels.WeatherViewModel
-import com.wheezy.skyflight.feature.loyalty.presentation.states.PointsBalanceState
 import com.wheezy.skyflight.feature.loyalty.presentation.states.RedeemPointsState
 import com.wheezy.skyflight.feature.loyalty.presentation.viewmodels.LoyaltyViewModel
 import com.wheezy.skyflight.navigation.Screen
@@ -133,10 +133,6 @@ fun TicketDetailScreen(
                     paymentViewModel.handleFailure(result.error.localizedMessage ?: "Payment failed")
                     loyaltyViewModel.clearRedeemState()
                 }
-                else -> {
-                    paymentViewModel.handleFailure("Unknown payment error")
-                    loyaltyViewModel.clearRedeemState()
-                }
             }
         }
     )
@@ -190,14 +186,17 @@ fun TicketDetailScreen(
                     modifier = Modifier.padding(top = 16.dp)
                 )
 
-                if (paymentState is PaymentState.Error) {
+                // Сохраняем в локальные переменные для smart cast
+                val currentPaymentState = paymentState
+                if (currentPaymentState is PaymentState.Error) {
                     PaymentErrorCard(
-                        error = (paymentState as PaymentState.Error).message,
+                        error = currentPaymentState.message,
                         onDismiss = { paymentViewModel.clearError() }
                     )
                 }
 
-                if (redeemPointsState is RedeemPointsState.Loading) {
+                val currentRedeemState = redeemPointsState
+                if (currentRedeemState is RedeemPointsState.Loading) {
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 }
 
@@ -220,9 +219,8 @@ fun TicketDetailScreen(
                         )
                     }
 
-                    // Loyalty Points Section
-                    when (val state = pointsBalanceState) {
-                        is PointsBalanceState.Loading -> {
+                    when (val currentPointsState = pointsBalanceState) {
+                        PointsBalanceState.Loading -> {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -233,7 +231,7 @@ fun TicketDetailScreen(
                             }
                         }
                         is PointsBalanceState.Success -> {
-                            val availablePoints = state.data.balance
+                            val availablePoints = currentPointsState.data.balance
                             if (availablePoints > 0) {
                                 GlassCard(
                                     modifier = Modifier
@@ -287,7 +285,7 @@ fun TicketDetailScreen(
                                                         loyaltyViewModel.clearCalculatedDiscount()
                                                     }
                                                 },
-                                                enabled = redeemPointsState !is RedeemPointsState.Loading,
+                                                enabled = currentRedeemState !is RedeemPointsState.Loading,
                                                 colors = SwitchDefaults.colors(
                                                     checkedThumbColor = MaterialTheme.colorScheme.primary,
                                                     checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
@@ -345,10 +343,10 @@ fun TicketDetailScreen(
                                             }
                                         }
 
-                                        if (redeemPointsState is RedeemPointsState.Error) {
+                                        if (currentRedeemState is RedeemPointsState.Error) {
                                             Spacer(modifier = Modifier.height(8.dp))
                                             Text(
-                                                text = (redeemPointsState as RedeemPointsState.Error).message,
+                                                text = currentRedeemState.message,
                                                 color = MaterialTheme.colorScheme.error,
                                                 style = MaterialTheme.typography.bodySmall
                                             )
@@ -359,7 +357,7 @@ fun TicketDetailScreen(
                         }
                         is PointsBalanceState.Error -> {
                             Text(
-                                text = state.message,
+                                text = currentPointsState.message,
                                 color = MaterialTheme.colorScheme.error,
                                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
                                 style = MaterialTheme.typography.bodySmall
@@ -367,21 +365,20 @@ fun TicketDetailScreen(
                         }
                     }
 
-                    // Weather Section
-                    when (val state = weatherState) {
-                        is WeatherViewModel.WeatherUiState.Loading -> {
+                    when (val currentWeatherState = weatherState) {
+                        WeatherViewModel.WeatherUiState.Loading -> {
                             WeatherCardSkeleton()
                         }
                         is WeatherViewModel.WeatherUiState.Success -> {
                             WeatherCard(
-                                weather = state.weather,
-                                forecast = state.forecast,
-                                isStale = state.isCached,
+                                weather = currentWeatherState.weather,
+                                forecast = currentWeatherState.forecast,
+                                isStale = currentWeatherState.isCached,
                                 onRefresh = { weatherViewModel.refresh(selectedFlight.arrivalCity) }
                             )
                         }
                         is WeatherViewModel.WeatherUiState.Error -> {
-                            val cachedData = state.cachedData
+                            val cachedData = currentWeatherState.cachedData
                             if (cachedData != null) {
                                 WeatherCard(
                                     weather = cachedData,
@@ -391,14 +388,11 @@ fun TicketDetailScreen(
                                 )
                             } else {
                                 Text(
-                                    text = state.message,
+                                    text = currentWeatherState.message,
                                     color = MaterialTheme.colorScheme.error,
                                     modifier = Modifier.padding(24.dp)
                                 )
                             }
-                        }
-                        else -> {
-                            WeatherCardSkeleton()
                         }
                     }
 
@@ -409,17 +403,17 @@ fun TicketDetailScreen(
                             paymentViewModel.clearError()
                             loyaltyViewModel.clearRedeemState()
                             payDebounce.debounce {
-                                if (paymentState is PaymentState.Prepared && !isPaymentSheetPresented) {
-                                    val prepared = paymentState as PaymentState.Prepared
+                                val currentPaymentStateForPay = paymentState
+                                if (currentPaymentStateForPay is PaymentState.Prepared && !isPaymentSheetPresented) {
                                     try {
                                         isPaymentSheetPresented = true
                                         paymentSheet.presentWithPaymentIntent(
-                                            prepared.clientSecret,
+                                            currentPaymentStateForPay.clientSecret,
                                             PaymentSheet.Configuration(
                                                 merchantDisplayName = "SkyFlight",
                                                 customer = PaymentSheet.CustomerConfiguration(
-                                                    prepared.customerId,
-                                                    prepared.ephemeralKey
+                                                    currentPaymentStateForPay.customerId,
+                                                    currentPaymentStateForPay.ephemeralKey
                                                 )
                                             )
                                         )
@@ -432,7 +426,7 @@ fun TicketDetailScreen(
                         },
                         text = when {
                             paymentState is PaymentState.Loading -> "Processing..."
-                            redeemPointsState is RedeemPointsState.Loading -> "Redeeming points..."
+                            currentRedeemState is RedeemPointsState.Loading -> "Redeeming points..."
                             usePoints && calculatedDiscount != null -> {
                                 val discount = calculatedDiscount
                                 if (discount != null) "Pay $${discount.finalAmount / 100}" else "Pay for ticket"
@@ -441,7 +435,7 @@ fun TicketDetailScreen(
                         },
                         enabled = paymentState is PaymentState.Prepared &&
                                 !isPaymentSheetPresented &&
-                                redeemPointsState !is RedeemPointsState.Loading,
+                                currentRedeemState !is RedeemPointsState.Loading,
                         modifier = Modifier.padding(horizontal = 24.dp)
                     )
 

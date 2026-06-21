@@ -3,7 +3,6 @@ package com.wheezy.skyflight.feature.review.presentation.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
@@ -21,11 +20,13 @@ import com.wheezy.skyflight.core.ui.components.BackButton
 import com.wheezy.skyflight.core.ui.components.GlassCard
 import com.wheezy.skyflight.core.ui.components.GlassCardDefaults
 import com.wheezy.skyflight.core.ui.components.WorldBackground
+import com.wheezy.skyflight.feature.review.presentation.components.AverageRatingDisplay
 import com.wheezy.skyflight.feature.review.presentation.components.RatingDistributionChart
 import com.wheezy.skyflight.feature.review.presentation.components.RatingStars
-import com.wheezy.skyflight.feature.review.presentation.states.AirlineRatingUiState
+import com.wheezy.skyflight.feature.review.presentation.components.ReviewMetaInfo
 import com.wheezy.skyflight.feature.review.presentation.states.ReviewsPageState
 import com.wheezy.skyflight.feature.review.presentation.viewmodels.ReviewViewModel
+import com.wheezy.skyflight.navigation.navigateToAirlineReviews
 import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -39,7 +40,6 @@ fun FlightReviewsScreen(
     val reviewsPageState by viewModel.reviewsPageState.collectAsState()
     val airlineRatingState by viewModel.airlineRatingState.collectAsState()
     val dateFormatter = remember { DateTimeFormatter.ofPattern("dd MMM yyyy") }
-    val scrollState = rememberLazyListState()
 
     var currentPage by remember { mutableIntStateOf(0) }
     var isLoadingMore by remember { mutableStateOf(false) }
@@ -48,28 +48,9 @@ fun FlightReviewsScreen(
         viewModel.loadAirlineRating(airlineName)
     }
 
-    LaunchedEffect(flightId) {
+    LaunchedEffect(Unit) {
         viewModel.resetReviewsPage()
-        currentPage = 0
-        viewModel.loadFlightReviewsPaginated(flightId, 0)
-    }
-
-    LaunchedEffect(scrollState.layoutInfo.visibleItemsInfo.lastOrNull()?.index, reviewsPageState) {
-        val state = reviewsPageState
-        if (state is ReviewsPageState.Success && !isLoadingMore) {
-            val lastVisibleIndex = scrollState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            val totalItems = state.reviews.size
-
-            if (lastVisibleIndex >= totalItems - 3 && currentPage < state.totalPages - 1) {
-                isLoadingMore = true
-                currentPage++
-                viewModel.loadFlightReviewsPaginated(flightId, currentPage)
-            }
-        }
-    }
-
-    LaunchedEffect(reviewsPageState) {
-        isLoadingMore = false
+        viewModel.loadFlightReviewsPaginated(flightId, 0, 10)
     }
 
     Scaffold(
@@ -77,96 +58,68 @@ fun FlightReviewsScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text(
-                            text = "Reviews",
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = airlineName,
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Text("Reviews", fontWeight = FontWeight.Bold)
+                        Text(airlineName, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 },
-                navigationIcon = { BackButton(onClick = { navController.popBackStack() }) },
+                navigationIcon = {
+                    BackButton(
+                        onClick = { navController.popBackStack() }
+                    )
+                },
+                actions = {
+                    TextButton(
+                        onClick = {
+                            navController.navigateToAirlineReviews(airlineName)
+                        }
+                    ) {
+                        Text("All Airline Reviews", fontSize = 12.sp)
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
                 )
             )
         }
     ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
+        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             WorldBackground(modifier = Modifier.align(Alignment.TopCenter))
 
             when (val state = reviewsPageState) {
                 is ReviewsPageState.Loading -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
+                    Box(Modifier.fillMaxSize(), Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            CircularProgressIndicator()
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("Loading reviews...", fontSize = 12.sp)
+                        }
                     }
                 }
-
                 is ReviewsPageState.Error -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
+                    Box(Modifier.fillMaxSize(), Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = state.message,
-                                color = MaterialTheme.colorScheme.error,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                            )
+                            Text(state.message, color = MaterialTheme.colorScheme.error)
                             Spacer(modifier = Modifier.height(16.dp))
-                            Button(onClick = {
-                                viewModel.resetReviewsPage()
-                                currentPage = 0
-                                viewModel.loadFlightReviewsPaginated(flightId, 0)
-                                viewModel.loadAirlineRating(airlineName)
-                            }) {
+                            Button(
+                                onClick = {
+                                    viewModel.resetReviewsPage()
+                                    viewModel.loadFlightReviewsPaginated(flightId, 0, 10)
+                                }
+                            ) {
                                 Text("Retry")
                             }
                         }
                     }
                 }
-
                 is ReviewsPageState.Success -> {
-                    val reviews = state.reviews
-
                     LazyColumn(
-                        state = scrollState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         item {
                             when (val ratingState = airlineRatingState) {
-                                is AirlineRatingUiState.Loading -> {
-                                    GlassCard(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        config = GlassCardDefaults.medium
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(32.dp),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                CircularProgressIndicator(modifier = Modifier.size(32.dp))
-                                                Spacer(modifier = Modifier.height(8.dp))
-                                                Text("Loading rating...", fontSize = 12.sp)
-                                            }
-                                        }
-                                    }
-                                }
-                                is AirlineRatingUiState.Success -> {
+                                is com.wheezy.skyflight.feature.review.presentation.states.AirlineRatingUiState.Success -> {
                                     val airlineRating = ratingState.rating
                                     if (airlineRating.totalReviews > 0) {
                                         GlassCard(
@@ -174,43 +127,19 @@ fun FlightReviewsScreen(
                                             config = GlassCardDefaults.medium
                                         ) {
                                             Column(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(16.dp),
+                                                modifier = Modifier.fillMaxWidth().padding(16.dp),
                                                 horizontalAlignment = Alignment.CenterHorizontally
                                             ) {
-                                                Text(
-                                                    text = airlineRating.averageRatingFormatted,
-                                                    style = MaterialTheme.typography.displayLarge,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = MaterialTheme.colorScheme.primary
-                                                )
-
-                                                RatingStars(
-                                                    rating = airlineRating.starsCount,
-                                                    size = 24
-                                                )
-
-                                                Text(
-                                                    text = "Based on ${airlineRating.totalReviews} reviews",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                )
-
+                                                AverageRatingDisplay(airlineRating)
                                                 Spacer(modifier = Modifier.height(16.dp))
-
                                                 Text(
-                                                    text = "Rating Distribution",
+                                                    "Rating Distribution",
                                                     style = MaterialTheme.typography.titleSmall,
-                                                    fontWeight = FontWeight.Bold,
-                                                    modifier = Modifier.fillMaxWidth()
+                                                    fontWeight = FontWeight.Bold
                                                 )
-
-                                                Spacer(modifier = Modifier.height(8.dp))
-
                                                 RatingDistributionChart(
-                                                    ratingDistribution = airlineRating.ratingDistribution,
-                                                    totalReviews = airlineRating.totalReviews
+                                                    airlineRating.ratingDistribution,
+                                                    airlineRating.totalReviews
                                                 )
                                             }
                                         }
@@ -220,26 +149,23 @@ fun FlightReviewsScreen(
                                             config = GlassCardDefaults.medium
                                         ) {
                                             Box(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(32.dp),
+                                                modifier = Modifier.fillMaxWidth().padding(32.dp),
                                                 contentAlignment = Alignment.Center
                                             ) {
                                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                                     Icon(
-                                                        imageVector = Icons.Default.Star,
-                                                        contentDescription = null,
+                                                        Icons.Default.Star,
+                                                        null,
                                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                                         modifier = Modifier.size(48.dp)
                                                     )
-                                                    Spacer(modifier = Modifier.height(8.dp))
                                                     Text(
-                                                        text = "No reviews yet",
+                                                        "No reviews yet",
                                                         style = MaterialTheme.typography.titleMedium,
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                                     )
                                                     Text(
-                                                        text = "Be the first to review this airline!",
+                                                        "Be the first!",
                                                         style = MaterialTheme.typography.bodySmall,
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                                     )
@@ -248,72 +174,60 @@ fun FlightReviewsScreen(
                                         }
                                     }
                                 }
-                                is AirlineRatingUiState.Error -> {
+                                is com.wheezy.skyflight.feature.review.presentation.states.AirlineRatingUiState.Loading -> {
                                     GlassCard(
                                         modifier = Modifier.fillMaxWidth(),
                                         config = GlassCardDefaults.medium
                                     ) {
-                                        Column(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(16.dp),
-                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        Box(
+                                            modifier = Modifier.fillMaxWidth().padding(32.dp),
+                                            contentAlignment = Alignment.Center
                                         ) {
-                                            Text(
-                                                text = ratingState.message,
-                                                color = MaterialTheme.colorScheme.error,
-                                                fontSize = 12.sp
-                                            )
-                                            Spacer(modifier = Modifier.height(8.dp))
-                                            TextButton(onClick = {
-                                                viewModel.loadAirlineRating(airlineName)
-                                            }) {
-                                                Text("Retry")
-                                            }
+                                            CircularProgressIndicator()
                                         }
                                     }
                                 }
-                                else -> Unit
+                                else -> {}
                             }
                         }
 
-                        if (reviews.isEmpty() && (airlineRatingState is AirlineRatingUiState.Success && (airlineRatingState as AirlineRatingUiState.Success).rating.totalReviews == 0)) {
-                            // Already showed "No reviews yet"
-                        } else if (reviews.isEmpty()) {
+                        if (state.reviews.isEmpty()) {
                             item {
                                 Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(32.dp),
+                                    modifier = Modifier.fillMaxWidth().padding(32.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        CircularProgressIndicator(modifier = Modifier.size(32.dp))
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Text("Loading reviews...", fontSize = 12.sp)
-                                    }
+                                    Text(
+                                        "No reviews available",
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontSize = 14.sp
+                                    )
                                 }
                             }
                         } else {
-                            items(
-                                items = reviews,
-                                key = { it.id }
-                            ) { review ->
-                                ReviewCard(
+                            items(state.reviews) { review ->
+                                ReviewCardItem(
                                     review = review,
                                     dateFormatter = dateFormatter
                                 )
                             }
+                        }
 
-                            if (state.currentPage < state.totalPages - 1) {
-                                item {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(16.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        CircularProgressIndicator(modifier = Modifier.size(32.dp))
+                        if (state.currentPage < state.totalPages - 1) {
+                            item {
+                                Button(
+                                    onClick = {
+                                        isLoadingMore = true
+                                        currentPage++
+                                        viewModel.loadFlightReviewsPaginated(flightId, currentPage, 10)
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = !isLoadingMore
+                                ) {
+                                    if (isLoadingMore) {
+                                        CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                                    } else {
+                                        Text("Load More")
                                     }
                                 }
                             }
@@ -326,65 +240,47 @@ fun FlightReviewsScreen(
 }
 
 @Composable
-fun ReviewCard(
+fun ReviewCardItem(
     review: Review,
     dateFormatter: DateTimeFormatter,
     modifier: Modifier = Modifier
 ) {
-    GlassCard(
-        modifier = modifier.fillMaxWidth(),
-        config = GlassCardDefaults.medium
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
+    GlassCard(modifier = modifier.fillMaxWidth(), config = GlassCardDefaults.medium) {
+        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
-                ) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                     Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = null,
+                        Icons.Default.Person,
+                        null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = review.userName ?: "Anonymous",
-                        fontWeight = FontWeight.Medium,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                    Text(review.userName ?: "Anonymous", fontWeight = FontWeight.Medium)
                 }
-
-                RatingStars(
-                    rating = review.rating,
-                    size = 16
-                )
+                RatingStars(review.rating, size = 16)
             }
-
             Spacer(modifier = Modifier.height(8.dp))
 
+            ReviewMetaInfo(
+                review = review,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
             Text(
-                text = review.createdAt.format(dateFormatter),
+                review.createdAt.format(dateFormatter),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-
-            val comment = review.comment
-            if (!comment.isNullOrBlank()) {
+            review.comment?.let {
                 Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = comment,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
             }
         }
     }

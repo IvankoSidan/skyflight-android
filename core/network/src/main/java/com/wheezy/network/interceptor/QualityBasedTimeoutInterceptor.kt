@@ -1,7 +1,7 @@
 package com.wheezy.skyflight.core.network.interceptor
 
+import android.util.Log
 import okhttp3.Interceptor
-import okhttp3.OkHttpClient
 import okhttp3.Response
 import java.util.concurrent.TimeUnit
 
@@ -10,14 +10,18 @@ class QualityBasedTimeoutInterceptor(
 ) : Interceptor {
 
     override fun intercept(chain: Interceptor.Chain): Response {
-        val timeout = networkQualityMonitor.getTimeoutByQuality()
+        val quality = networkQualityMonitor.networkQuality.value
+        val timeout = networkQualityMonitor.getTimeoutByQuality().toInt()
 
-        val client = OkHttpClient.Builder()
-            .connectTimeout(timeout, TimeUnit.MILLISECONDS)
-            .readTimeout(timeout, TimeUnit.MILLISECONDS)
-            .writeTimeout(timeout, TimeUnit.MILLISECONDS)
-            .build()
+        Log.d(
+            "NetworkQuality",
+            "Current quality: $quality, timeout: $timeout ms"
+        )
 
-        return client.newCall(chain.request()).execute()
+        return chain
+            .withConnectTimeout(timeout, TimeUnit.MILLISECONDS)
+            .withReadTimeout(timeout, TimeUnit.MILLISECONDS)
+            .withWriteTimeout(timeout, TimeUnit.MILLISECONDS)
+            .proceed(chain.request())
     }
 }

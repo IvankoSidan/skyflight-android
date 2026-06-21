@@ -2,20 +2,21 @@ package com.wheezy.skyflight.feature.search.presentation.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.wheezy.skyflight.core.common.contract.SeatSelectionContract
+import com.wheezy.skyflight.core.common.coroutines.CoroutineOptimizer
+import com.wheezy.skyflight.core.common.coroutines.CoroutineOptimizer.debounceFirst
+import com.wheezy.skyflight.core.common.usecase.GetFlightByIdUseCase
 import com.wheezy.skyflight.core.model.FlightModel
 import com.wheezy.skyflight.core.model.Seat
 import com.wheezy.skyflight.core.model.SeatStatus
+import com.wheezy.skyflight.core.model.SeatSelectionState
 import com.wheezy.skyflight.core.ui.snackbar.SnackbarHelper
 import com.wheezy.skyflight.feature.search.domain.usecase.*
-import com.wheezy.skyflight.feature.search.presentation.states.ClassSeatsUiState
-import com.wheezy.skyflight.feature.search.presentation.states.FlightsUiState
-import com.wheezy.skyflight.feature.search.presentation.states.SearchUiState
+import com.wheezy.skyflight.feature.search.presentation.states.*
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.math.BigDecimal
 import javax.inject.Inject
 
@@ -25,131 +26,192 @@ class SearchViewModel @Inject constructor(
     private val getClassSeatsUseCase: GetClassSeatsUseCase,
     private val searchFlightsUseCase: SearchFlightsUseCase,
     private val selectFlightUseCase: SelectFlightUseCase,
-    private val getReservedSeatsUseCase: GetReservedSeatsUseCase
-) : ViewModel() {
+    private val getReservedSeatsUseCase: GetReservedSeatsUseCase,
+    private val getFlightByIdUseCase: GetFlightByIdUseCase
+) : ViewModel(), SeatSelectionContract {
 
-    private val _locationsState = MutableStateFlow<SearchUiState>(SearchUiState.Loading)
-    val locationsState: StateFlow<SearchUiState> = _locationsState.asStateFlow()
+    private val _state = MutableStateFlow(SearchScreenState())
+    val state: StateFlow<SearchScreenState> = _state.asStateFlow()
 
-    private val _classSeatsState = MutableStateFlow<ClassSeatsUiState>(ClassSeatsUiState.Loading)
-    val classSeatsState: StateFlow<ClassSeatsUiState> = _classSeatsState.asStateFlow()
+    val locationsState: StateFlow<SearchUiState> = _state.map { it.locationsState }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = SearchUiState.Loading
+    )
 
-    private val _flightsState = MutableStateFlow<FlightsUiState>(FlightsUiState.Loading)
-    val flightsState: StateFlow<FlightsUiState> = _flightsState.asStateFlow()
+    val classSeatsState: StateFlow<ClassSeatsUiState> = _state.map { it.classSeatsState }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = ClassSeatsUiState.Loading
+    )
 
-    private val _selectedFlight = MutableStateFlow<FlightModel?>(null)
-    val selectedFlight: StateFlow<FlightModel?> = _selectedFlight.asStateFlow()
+    val flightsState: StateFlow<FlightsUiState> = _state.map { it.flightsState }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = FlightsUiState.Loading
+    )
 
-    private val _selectedSeats = MutableStateFlow<List<Seat>>(emptyList())
-    val selectedSeats: StateFlow<List<Seat>> = _selectedSeats.asStateFlow()
+    val seatSelectionState: StateFlow<SeatSelectionState> = _state.map { it.seatSelectionState }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = SeatSelectionState.Loading
+    )
 
-    private val _totalPrice = MutableStateFlow(BigDecimal.ZERO)
-    val totalPrice: StateFlow<BigDecimal> = _totalPrice.asStateFlow()
+    override val selectedFlight: StateFlow<FlightModel?> = _state.map { it.selectedFlight }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = null
+    )
 
-    private val _seatList = MutableStateFlow<List<Seat>>(emptyList())
-    val seatList: StateFlow<List<Seat>> = _seatList.asStateFlow()
+    override val seatList: StateFlow<List<Seat>> = _state.map { it.seatList }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = emptyList()
+    )
 
-    private val _reservedSeats = MutableStateFlow<List<String>>(emptyList())
-    val reservedSeats: StateFlow<List<String>> = _reservedSeats.asStateFlow()
+    override val selectedSeats: StateFlow<List<Seat>> = _state.map { it.selectedSeats }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = emptyList()
+    )
+
+    override val totalPrice: StateFlow<BigDecimal> = _state.map { it.totalPrice }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = BigDecimal.ZERO
+    )
+
+    override val reservedSeats: StateFlow<List<String>> = _state.map { it.reservedSeats }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = emptyList()
+    )
 
     fun fetchLocations() {
-        viewModelScope.launch {
-            _locationsState.value = SearchUiState.Loading
-            val result = getLocationsUseCase()
-            result.onSuccess { locations ->
-                _locationsState.value = SearchUiState.Success(locations)
+        viewModelScope.launch(CoroutineOptimizer.ioDispatcher) {
+            _state.update { it.copy(locationsState = SearchUiState.Loading) }
+            getLocationsUseCase().onSuccess { locations ->
+                _state.update { it.copy(locationsState = SearchUiState.Success(locations)) }
             }.onFailure { error ->
-                _locationsState.value = SearchUiState.Error(error.message ?: "Failed to load locations")
+                _state.update { it.copy(locationsState = SearchUiState.Error(error.message ?: "Failed to load locations")) }
                 SnackbarHelper.showError(error.message ?: "Failed to load locations")
             }
         }
     }
 
     fun fetchClassSeats() {
-        viewModelScope.launch {
-            _classSeatsState.value = ClassSeatsUiState.Loading
-            val result = getClassSeatsUseCase()
-            result.onSuccess { seats ->
-                _classSeatsState.value = ClassSeatsUiState.Success(seats)
+        viewModelScope.launch(CoroutineOptimizer.ioDispatcher) {
+            _state.update { it.copy(classSeatsState = ClassSeatsUiState.Loading) }
+            getClassSeatsUseCase().onSuccess { seats ->
+                _state.update { it.copy(classSeatsState = ClassSeatsUiState.Success(seats)) }
             }.onFailure { error ->
-                _classSeatsState.value = ClassSeatsUiState.Error(error.message ?: "Failed to load class seats")
+                _state.update { it.copy(classSeatsState = ClassSeatsUiState.Error(error.message ?: "Failed to load class seats")) }
                 SnackbarHelper.showError(error.message ?: "Failed to load class seats")
             }
         }
     }
 
     fun searchFlights(from: String, to: String, classType: String?) {
-        viewModelScope.launch {
-            _flightsState.value = FlightsUiState.Loading
-            val result = searchFlightsUseCase(from, to, classType)
-            result.onSuccess { flights ->
-                _flightsState.value = FlightsUiState.Success(flights)
-            }.onFailure { error ->
-                _flightsState.value = FlightsUiState.Error(error.message ?: "Failed to search flights")
-                SnackbarHelper.showError(error.message ?: "Failed to search flights")
+        viewModelScope.launch(CoroutineOptimizer.ioDispatcher) {
+            flow {
+                emit(Triple(from, to, classType))
+            }.debounceFirst().collect { (fromParam, toParam, classParam) ->
+                _state.update { it.copy(flightsState = FlightsUiState.Loading) }
+
+                val results = CoroutineOptimizer.parallelMap(
+                    items = listOf(Triple(fromParam, toParam, classParam)),
+                    parallelism = 1
+                ) { (fromP, toP, classP) ->
+                    searchFlightsUseCase(fromP, toP, classP)
+                }
+
+                results.firstOrNull()?.let { result ->
+                    result.onSuccess { flights ->
+                        withContext(CoroutineOptimizer.mainDispatcher) {
+                            _state.update { it.copy(flightsState = FlightsUiState.Success(flights)) }
+                        }
+                    }.onFailure { error ->
+                        withContext(CoroutineOptimizer.mainDispatcher) {
+                            _state.update { it.copy(flightsState = FlightsUiState.Error(error.message ?: "Failed to search flights")) }
+                            SnackbarHelper.showError(error.message ?: "Failed to search flights")
+                        }
+                    }
+                } ?: run {
+                    withContext(CoroutineOptimizer.mainDispatcher) {
+                        _state.update { it.copy(flightsState = FlightsUiState.Error("No results")) }
+                    }
+                }
             }
         }
     }
 
-    fun selectFlight(flight: FlightModel) {
-        viewModelScope.launch {
-            val result = selectFlightUseCase(flight)
-            _selectedFlight.value = result.flight
-            _seatList.value = result.seatList
-            _reservedSeats.value = result.reservedSeats
-            clearSeatSelection()
+    suspend fun loadFlight(flightId: Long) {
+        _state.update { it.copy(seatSelectionState = SeatSelectionState.Loading) }
+        try {
+            val flight = getFlightByIdUseCase(flightId)
+            if (flight != null) {
+                selectFlight(flight)
+            } else {
+                _state.update { it.copy(seatSelectionState = SeatSelectionState.Error("Flight not found")) }
+                SnackbarHelper.showError("Flight not found")
+            }
+        } catch (e: Exception) {
+            _state.update { it.copy(seatSelectionState = SeatSelectionState.Error(e.message ?: "Failed to load flight")) }
+            SnackbarHelper.showError(e.message ?: "Failed to load flight")
         }
     }
 
-    fun selectSeat(seat: Seat, flight: FlightModel) {
-        val currentSelected = _selectedSeats.value.toMutableList()
+    override fun selectFlight(flight: FlightModel) {
+        viewModelScope.launch(CoroutineOptimizer.ioDispatcher) {
+            val reservedSeatsResult = getReservedSeatsUseCase(flight.flightId ?: 0)
+            val result = selectFlightUseCase(flight)
+
+            _state.update {
+                it.copy(
+                    selectedFlight = flight,
+                    reservedSeats = reservedSeatsResult.getOrElse { result.reservedSeats },
+                    seatList = result.seatList,
+                    seatSelectionState = SeatSelectionState.Success(flight.flightId ?: 0),
+                    selectedSeats = emptyList(),
+                    totalPrice = BigDecimal.ZERO
+                )
+            }
+        }
+    }
+
+    override fun selectSeat(seat: Seat) {
+        val currentState = _state.value
+        val flight = currentState.selectedFlight ?: return
+        val currentSelected = currentState.selectedSeats.toMutableList()
         val isSelected = currentSelected.any { it.name == seat.name }
+
+        val newSelectedSeats: List<Seat>
+        val newSeatList: List<Seat>
 
         if (isSelected) {
             currentSelected.removeAll { it.name == seat.name }
-            _seatList.update { seats ->
-                seats.map { if (it.name == seat.name) it.copy(status = SeatStatus.AVAILABLE) else it }
+            newSelectedSeats = currentSelected
+            newSeatList = currentState.seatList.map {
+                if (it.name == seat.name) it.copy(status = SeatStatus.AVAILABLE) else it
             }
         } else {
+            if (currentState.reservedSeats.contains(seat.name)) {
+                SnackbarHelper.showError("This seat is already taken")
+                return
+            }
             currentSelected.add(seat)
-            _seatList.update { seats ->
-                seats.map { if (it.name == seat.name) it.copy(status = SeatStatus.SELECTED) else it }
+            newSelectedSeats = currentSelected
+            newSeatList = currentState.seatList.map {
+                if (it.name == seat.name) it.copy(status = SeatStatus.SELECTED) else it
             }
         }
-        _selectedSeats.value = currentSelected
-        _totalPrice.value = flight.price.multiply(BigDecimal(currentSelected.size))
-    }
 
-    fun fetchReservedSeats(flightId: Long) {
-        viewModelScope.launch {
-            val result = getReservedSeatsUseCase(flightId)
-            result.onSuccess { seats ->
-                _reservedSeats.value = seats
-            }.onFailure {
-                _reservedSeats.value = emptyList()
-            }
-        }
-    }
-
-    private fun clearSeatSelection() {
-        val updatedSeats = _seatList.value.map { seat ->
-            if (seat.status == SeatStatus.SELECTED) seat.copy(status = SeatStatus.AVAILABLE)
-            else seat
-        }
-        _seatList.value = updatedSeats
-        _selectedSeats.value = emptyList()
-        _totalPrice.value = BigDecimal.ZERO
-    }
-
-    fun clearErrors() {
-        if (_locationsState.value is SearchUiState.Error) {
-            _locationsState.value = SearchUiState.Loading
-        }
-        if (_classSeatsState.value is ClassSeatsUiState.Error) {
-            _classSeatsState.value = ClassSeatsUiState.Loading
-        }
-        if (_flightsState.value is FlightsUiState.Error) {
-            _flightsState.value = FlightsUiState.Loading
+        _state.update {
+            it.copy(
+                selectedSeats = newSelectedSeats,
+                seatList = newSeatList,
+                totalPrice = flight.price.multiply(BigDecimal(newSelectedSeats.size))
+            )
         }
     }
 }

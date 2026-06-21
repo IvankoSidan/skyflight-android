@@ -46,7 +46,6 @@ data class BottomMenuItem(
 private fun prepareBottomMenu(): List<BottomMenuItem> = listOf(
     BottomMenuItem("Home", Icons.Default.Home, Screen.Main.route),
     BottomMenuItem("Flights", Icons.Default.Flight, Screen.SearchResult.route),
-    BottomMenuItem("Seats", Icons.Default.EventSeat, Screen.SelectSeat.route, requiresArg = true),
     BottomMenuItem("Ticket", Icons.Default.ConfirmationNumber, Screen.TicketDetail.route)
 )
 
@@ -63,7 +62,8 @@ fun MyBottomBar(navController: NavHostController) {
         onItemSelected = { item ->
             if (currentRoute != item.route) {
                 if (item.requiresArg) {
-                    SnackbarHelper.showError("Please select a flight first")
+                    // Используем showLowPriority
+                    SnackbarHelper.showLowPriority("Please select a flight first")
                     return@MyBottomBarUI
                 }
                 try {

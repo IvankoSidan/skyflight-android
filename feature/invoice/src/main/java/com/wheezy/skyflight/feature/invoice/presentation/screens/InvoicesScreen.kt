@@ -2,14 +2,11 @@ package com.wheezy.skyflight.feature.invoice.presentation.screens
 
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Download
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,7 +20,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.wheezy.skyflight.core.ui.components.BackButton
 import com.wheezy.skyflight.core.ui.components.EmptyStateScreen
-import com.wheezy.skyflight.core.ui.components.GlassCard
 import com.wheezy.skyflight.core.ui.components.WorldBackground
 import com.wheezy.skyflight.core.ui.snackbar.SnackbarHelper
 import com.wheezy.skyflight.feature.invoice.presentation.components.InvoiceCard
@@ -52,29 +48,31 @@ fun InvoicesScreen(
         viewModel.loadInvoices(0)
     }
 
-    // Автоматическая загрузка следующих страниц
-    LaunchedEffect(scrollState.layoutInfo.visibleItemsInfo.lastOrNull()?.index, invoicesState) {
-        val state = invoicesState
-        if (state is InvoicesState.Success && !isLoadingMore) {
-            val lastVisibleIndex = scrollState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            val totalItems = state.data.invoices.size
-
-            if (lastVisibleIndex >= totalItems - 3 && currentPage < state.data.totalPages - 1) {
-                isLoadingMore = true
-                currentPage++
-                viewModel.loadInvoices(currentPage)
+    LaunchedEffect(scrollState) {
+        snapshotFlow { scrollState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
+            .collect { lastVisibleIndex ->
+                val state = invoicesState
+                if (state is InvoicesState.Success && !isLoadingMore) {
+                    val totalItems = state.data.invoices.size
+                    if (lastVisibleIndex != null && lastVisibleIndex >= totalItems - 3 && currentPage < state.data.totalPages - 1) {
+                        isLoadingMore = true
+                        currentPage++
+                        viewModel.loadInvoices(currentPage)
+                    }
+                }
             }
-        }
     }
 
     LaunchedEffect(invoicesState) {
         isLoadingMore = false
-        if (invoicesState is InvoicesState.Success) {
-            totalPages = (invoicesState as InvoicesState.Success).data.totalPages
+        when (val state = invoicesState) {
+            is InvoicesState.Success -> {
+                totalPages = state.data.totalPages
+            }
+            else -> {}
         }
     }
 
-    // Обработка скачивания
     LaunchedEffect(downloadState) {
         when (val state = downloadState) {
             is DownloadInvoiceState.Success -> {
@@ -111,7 +109,7 @@ fun InvoicesScreen(
         ) {
             WorldBackground(modifier = Modifier.align(Alignment.TopCenter))
 
-            when (val state = invoicesState) {
+            when (val currentState = invoicesState) {
                 is InvoicesState.Loading -> {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -132,7 +130,7 @@ fun InvoicesScreen(
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
-                                text = state.message,
+                                text = currentState.message,
                                 color = MaterialTheme.colorScheme.error,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )
@@ -145,7 +143,7 @@ fun InvoicesScreen(
                 }
 
                 is InvoicesState.Success -> {
-                    val invoices = state.data.invoices
+                    val invoices = currentState.data.invoices
 
                     if (invoices.isEmpty()) {
                         EmptyStateScreen(
@@ -168,7 +166,7 @@ fun InvoicesScreen(
                                 )
                             }
 
-                            if (state.data.currentPage < state.data.totalPages - 1) {
+                            if (currentState.data.currentPage < currentState.data.totalPages - 1) {
                                 item {
                                     Box(
                                         modifier = Modifier
@@ -198,7 +196,7 @@ private fun saveAndOpenPdf(context: Context, pdfData: ByteArray) {
 
         val uri = FileProvider.getUriForFile(
             context,
-            "${context.packageName}.fileprovider",
+            "${context.packageName}.file_provider",
             file
         )
 

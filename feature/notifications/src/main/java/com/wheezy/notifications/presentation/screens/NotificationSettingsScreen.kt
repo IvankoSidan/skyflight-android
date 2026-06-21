@@ -20,6 +20,7 @@ import com.wheezy.skyflight.feature.notifications.presentation.components.Settin
 import com.wheezy.skyflight.feature.notifications.presentation.components.TimeRangeCard
 import com.wheezy.skyflight.feature.notifications.presentation.states.NotificationSettingsState
 import com.wheezy.skyflight.feature.notifications.presentation.viewmodels.NotificationSettingsViewModel
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,7 +54,7 @@ fun NotificationSettingsScreen(
         ) {
             WorldBackground(modifier = Modifier.align(Alignment.TopCenter))
 
-            when (state) {
+            when (val currentState = state) {
                 is NotificationSettingsState.Loading -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()
@@ -63,11 +64,11 @@ fun NotificationSettingsScreen(
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
-                                text = (state as NotificationSettingsState.Error).message,
+                                text = currentState.message,
                                 color = MaterialTheme.colorScheme.error
                             )
                             Spacer(modifier = Modifier.height(8.dp))
-                            Button(onClick = { /* retry */ }) {
+                            Button(onClick = {  }) {
                                 Text("Retry")
                             }
                         }
@@ -259,7 +260,7 @@ fun TimePickerDialog(
                         Text("-", fontSize = 24.sp)
                     }
                     Text(
-                        text = String.format("%02d:00", selectedHour),
+                        text = String.format(Locale.getDefault(), "%02d:00", selectedHour),
                         fontSize = 32.sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(horizontal = 24.dp)

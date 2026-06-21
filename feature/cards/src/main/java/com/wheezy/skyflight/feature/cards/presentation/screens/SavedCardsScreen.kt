@@ -29,6 +29,7 @@ fun SavedCardsScreen(
     val savedCardsState by viewModel.savedCardsState.collectAsState()
     val deleteCardState by viewModel.deleteCardState.collectAsState()
     val setDefaultCardState by viewModel.setDefaultCardState.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
 
     var showDeleteDialog by remember { mutableStateOf<String?>(null) }
     var showSetDefaultDialog by remember { mutableStateOf<String?>(null) }
@@ -38,13 +39,15 @@ fun SavedCardsScreen(
     }
 
     LaunchedEffect(deleteCardState) {
-        if (deleteCardState is DeleteCardState.Success) {
+        val state = deleteCardState
+        if (state is DeleteCardState.Success) {
             viewModel.clearDeleteState()
         }
     }
 
     LaunchedEffect(setDefaultCardState) {
-        if (setDefaultCardState is SetDefaultCardState.Success) {
+        val state = setDefaultCardState
+        if (state is SetDefaultCardState.Success) {
             viewModel.clearSetDefaultState()
         }
     }
@@ -115,74 +118,84 @@ fun SavedCardsScreen(
         ) {
             WorldBackground(modifier = Modifier.align(Alignment.TopCenter))
 
-            when (val state = savedCardsState) {
-                is SavedCardsState.Loading -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
-                    }
+            if (isLoading) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
                 }
-                is SavedCardsState.Error -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = state.message,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Button(onClick = { viewModel.loadSavedCards() }) {
-                                Text("Retry")
-                            }
+            } else {
+                when (val currentState = savedCardsState) {
+                    is SavedCardsState.Loading -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
                         }
                     }
-                }
-                is SavedCardsState.Success -> {
-                    if (state.cards.isEmpty()) {
+                    is SavedCardsState.Error -> {
                         Box(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    imageVector = Icons.Default.Add,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(64.dp)
-                                )
-                                Spacer(modifier = Modifier.height(16.dp))
                                 Text(
-                                    text = "No saved cards",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    text = currentState.message,
+                                    color = MaterialTheme.colorScheme.error
                                 )
-                                Text(
-                                    text = "Add a card during checkout to save it here",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Button(onClick = { viewModel.loadSavedCards() }) {
+                                    Text("Retry")
+                                }
                             }
                         }
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            items(state.cards) { card ->
-                                CardItem(
-                                    card = card,
-                                    onDeleteClick = { showDeleteDialog = card.stripePaymentMethodId },
-                                    onSetDefaultClick = {
-                                        if (!card.isDefault) {
-                                            showSetDefaultDialog = card.stripePaymentMethodId
+                    }
+                    is SavedCardsState.Success -> {
+                        val cards = currentState.cards
+                        if (cards.isEmpty()) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(
+                                        imageVector = Icons.Default.Add,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(64.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Text(
+                                        text = "No saved cards",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        text = "Add a card during checkout to save it here",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                items(cards) { card ->
+                                    CardItem(
+                                        card = card,
+                                        onDeleteClick = { showDeleteDialog = card.stripePaymentMethodId },
+                                        onSetDefaultClick = {
+                                            if (!card.isDefault) {
+                                                showSetDefaultDialog = card.stripePaymentMethodId
+                                            }
                                         }
-                                    }
-                                )
+                                    )
+                                }
                             }
                         }
                     }

@@ -106,10 +106,4 @@ class ReferralViewModel @Inject constructor(
             context.startActivity(Intent.createChooser(shareIntent, "Invite Friends via"))
         }
     }
-
-    fun clearApplyState() {
-        if (_applyReferralState.value !is ApplyReferralState.Loading) {
-            _applyReferralState.value = ApplyReferralState.Idle
-        }
-    }
 }

@@ -1,5 +1,6 @@
 package com.wheezy.skyflight.feature.review.data.repository
 
+import android.util.Log
 import com.wheezy.skyflight.core.model.AirlineRating
 import com.wheezy.skyflight.core.model.CreateReviewRequest
 import com.wheezy.skyflight.core.model.Review
@@ -15,6 +16,10 @@ class ReviewRepositoryImpl @Inject constructor(
     private val reviewApiService: ReviewApiService
 ) : ReviewRepository {
 
+    companion object {
+        private const val TAG = "ReviewRepository"
+    }
+
     override suspend fun createReview(bookingId: Long, rating: Int, comment: String?): Result<Review> {
         return try {
             val response = reviewApiService.createReview(CreateReviewRequest(bookingId, rating, comment))
@@ -24,6 +29,7 @@ class ReviewRepositoryImpl @Inject constructor(
                 Result.failure(Exception(response.message()))
             }
         } catch (e: Exception) {
+            Log.e(TAG, "createReview error", e)
             Result.failure(e)
         }
     }
@@ -37,6 +43,7 @@ class ReviewRepositoryImpl @Inject constructor(
                 Result.failure(Exception(response.message()))
             }
         } catch (e: Exception) {
+            Log.e(TAG, "updateReview error", e)
             Result.failure(e)
         }
     }
@@ -50,6 +57,7 @@ class ReviewRepositoryImpl @Inject constructor(
                 Result.failure(Exception(response.message()))
             }
         } catch (e: Exception) {
+            Log.e(TAG, "deleteReview error", e)
             Result.failure(e)
         }
     }
@@ -63,6 +71,7 @@ class ReviewRepositoryImpl @Inject constructor(
                 Result.failure(Exception(response.message()))
             }
         } catch (e: Exception) {
+            Log.e(TAG, "getFlightReviews error", e)
             Result.failure(e)
         }
     }
@@ -74,7 +83,6 @@ class ReviewRepositoryImpl @Inject constructor(
                 val body = response.body()!!
                 @Suppress("UNCHECKED_CAST")
                 val reviewsList = (body["reviews"] as? List<*>?)?.filterIsInstance<Review>() ?: emptyList()
-
                 Result.success(
                     ReviewsPageData(
                         reviews = reviewsList,
@@ -88,6 +96,7 @@ class ReviewRepositoryImpl @Inject constructor(
                 Result.failure(Exception(response.message()))
             }
         } catch (e: Exception) {
+            Log.e(TAG, "getFlightReviewsPaginated error", e)
             Result.failure(e)
         }
     }
@@ -101,6 +110,32 @@ class ReviewRepositoryImpl @Inject constructor(
                 Result.failure(Exception(response.message()))
             }
         } catch (e: Exception) {
+            Log.e(TAG, "getAirlineRating error", e)
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun getAirlineReviewsPaginated(airlineName: String, page: Int, size: Int): Result<ReviewsPageData> {
+        return try {
+            val response = reviewApiService.getAirlineRatingPaginated(airlineName, page, size)
+            if (response.isSuccessful && response.body() != null) {
+                val body = response.body()!!
+                @Suppress("UNCHECKED_CAST")
+                val reviewsList = (body["reviews"] as? List<*>?)?.filterIsInstance<Review>() ?: emptyList()
+                Result.success(
+                    ReviewsPageData(
+                        reviews = reviewsList,
+                        currentPage = (body["currentPage"] as? Int) ?: 0,
+                        totalPages = (body["totalPages"] as? Int) ?: 0,
+                        totalItems = (body["totalItems"] as? Int) ?: 0,
+                        airlineRating = body["airlineRating"] as? AirlineRating
+                    )
+                )
+            } else {
+                Result.failure(Exception(response.message()))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "getAirlineReviewsPaginated error", e)
             Result.failure(e)
         }
     }
@@ -114,6 +149,7 @@ class ReviewRepositoryImpl @Inject constructor(
                 Result.failure(Exception(response.message()))
             }
         } catch (e: Exception) {
+            Log.e(TAG, "getMyReviews error", e)
             Result.failure(e)
         }
     }
@@ -127,6 +163,7 @@ class ReviewRepositoryImpl @Inject constructor(
                 Result.success(false)
             }
         } catch (e: Exception) {
+            Log.e(TAG, "canReview error", e)
             Result.success(false)
         }
     }

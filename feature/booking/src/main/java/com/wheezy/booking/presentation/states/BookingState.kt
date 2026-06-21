@@ -8,12 +8,6 @@ sealed class BookingListState {
     data class Error(val message: String) : BookingListState()
 }
 
-sealed class SeatSelectionState {
-    object Loading : SeatSelectionState()
-    data class Success(val flightId: Long) : SeatSelectionState()
-    data class Error(val message: String) : SeatSelectionState()
-}
-
 sealed class PaymentState {
     object Idle : PaymentState()
     object Loading : PaymentState()

@@ -8,9 +8,12 @@ import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.LifecycleService
+import androidx.lifecycle.lifecycleScope
 import com.wheezy.skyflight.core.common.manager.WebSocketManager
+import com.wheezy.skyflight.core.datastore.preferences.WebSocketPreferences
 import com.wheezy.skyflight.core.ui.R
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -18,6 +21,9 @@ class WebSocketService : LifecycleService() {
 
     @Inject
     lateinit var webSocketManager: WebSocketManager
+
+    @Inject
+    lateinit var webSocketPreferences: WebSocketPreferences
 
     companion object {
         private const val NOTIFICATION_ID = 1001
@@ -30,6 +36,18 @@ class WebSocketService : LifecycleService() {
         if (!isServiceRunning) {
             isServiceRunning = true
             startForegroundService()
+
+            lifecycleScope.launch {
+                // Используем setAutoConnect для управления автоподключением
+                webSocketPreferences.setAutoConnect(true)
+
+                val isSubscribed = webSocketPreferences.isSubscribed()
+                if (isSubscribed) {
+                    webSocketManager.connect()
+                    webSocketManager.subscribeToNotifications()
+                    webSocketManager.subscribeToBookingUpdates()
+                }
+            }
         }
     }
 
@@ -48,6 +66,9 @@ class WebSocketService : LifecycleService() {
     }
 
     override fun onDestroy() {
+        lifecycleScope.launch {
+            webSocketPreferences.setAutoConnect(false)
+        }
         webSocketManager.disconnect()
         isServiceRunning = false
         super.onDestroy()

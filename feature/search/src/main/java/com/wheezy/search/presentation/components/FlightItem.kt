@@ -1,11 +1,14 @@
 package com.wheezy.skyflight.feature.search.presentation.components
 
+import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Chair
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -16,19 +19,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
+import androidx.navigation.NavController
 import coil.ImageLoader
 import coil.compose.AsyncImage
 import com.wheezy.skyflight.core.model.FlightModel
 import com.wheezy.skyflight.core.ui.R
 import com.wheezy.skyflight.core.ui.components.GlassCard
 import com.wheezy.skyflight.core.ui.components.GlassCardDefaults
-import androidx.compose.material3.Icon as MaterialIcon
-import android.util.Log
+import com.wheezy.skyflight.navigation.navigateToAirlineReviews
 
 @Composable
 fun FlightItem(
     item: FlightModel,
     onFlightClick: (FlightModel) -> Unit,
+    navController: NavController? = null,
     imageLoader: ImageLoader
 ) {
     Log.d("FlightItem", "Loading image: ${item.fullLogoUrl}")
@@ -46,7 +50,7 @@ fun FlightItem(
             val (
                 logo, timeTxt, airplaneIcon,
                 fromCity, fromShort, toCity, toShort,
-                dashLine, seatIcon, priceTxt, classTxt
+                dashLine, seatIcon, priceTxt, classTxt, airlineReviewsButton
             ) = createRefs()
 
             AsyncImage(
@@ -169,7 +173,7 @@ fun FlightItem(
                     }
             )
 
-            MaterialIcon(
+            Icon(
                 imageVector = Icons.Default.Chair,
                 contentDescription = "Seat",
                 tint = MaterialTheme.colorScheme.primary,
@@ -210,6 +214,22 @@ fun FlightItem(
                         start.linkTo(seatIcon.end)
                     }
             )
+
+            if (navController != null) {
+                TextButton(
+                    onClick = {
+                        navController.navigateToAirlineReviews(item.airlineName)
+                    },
+                    modifier = Modifier
+                        .constrainAs(airlineReviewsButton) {
+                            top.linkTo(dashLine.bottom)
+                            bottom.linkTo(parent.bottom)
+                            end.linkTo(parent.end)
+                        }
+                ) {
+                    Text("Reviews", fontSize = 11.sp)
+                }
+            }
         }
     }
 }

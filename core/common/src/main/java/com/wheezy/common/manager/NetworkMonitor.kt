@@ -1,13 +1,14 @@
 package com.wheezy.skyflight.core.common.manager
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
-import android.annotation.SuppressLint
+import android.util.Log
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,14 +19,14 @@ import javax.inject.Singleton
 
 @Singleton
 class NetworkMonitor @Inject constructor(
-    @ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context
 ) {
-    private val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    private val connectivityManager: ConnectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
-    private val _isConnected = MutableStateFlow(false)
+    private val _isConnected: MutableStateFlow<Boolean> = MutableStateFlow(false)
     val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
 
-    private val networkCallback = object : ConnectivityManager.NetworkCallback() {
+    private val networkCallback: ConnectivityManager.NetworkCallback = object : ConnectivityManager.NetworkCallback() {
         @SuppressLint("MissingPermission")
         override fun onAvailable(network: Network) {
             if (hasNetworkPermission()) {
@@ -43,9 +44,8 @@ class NetworkMonitor @Inject constructor(
         @SuppressLint("MissingPermission")
         override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
             if (hasNetworkPermission()) {
-                val hasInternet = networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                _isConnected.value = networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
                         && networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
-                _isConnected.value = hasInternet
             }
         }
     }
@@ -58,12 +58,13 @@ class NetworkMonitor @Inject constructor(
         }
 
         try {
-            val request = NetworkRequest.Builder()
+            val request: NetworkRequest = NetworkRequest.Builder()
                 .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
                 .build()
             connectivityManager.registerNetworkCallback(request, networkCallback)
             _isConnected.value = isNetworkAvailable()
         } catch (e: SecurityException) {
+            Log.e("NetworkMonitor", "SecurityException during register", e)
             _isConnected.value = false
         }
     }
@@ -74,7 +75,7 @@ class NetworkMonitor @Inject constructor(
         try {
             connectivityManager.unregisterNetworkCallback(networkCallback)
         } catch (e: Exception) {
-            // Callback already unregistered
+            Log.d("NetworkMonitor", "Error unregistering network callback: ${e.message}")
         }
     }
 
@@ -83,11 +84,12 @@ class NetworkMonitor @Inject constructor(
         if (!hasNetworkPermission()) return false
 
         return try {
-            val network = connectivityManager.activeNetwork
-            val capabilities = connectivityManager.getNetworkCapabilities(network)
+            val network: Network? = connectivityManager.activeNetwork
+            val capabilities: NetworkCapabilities? = connectivityManager.getNetworkCapabilities(network)
             capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
-                    && capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true
+                    && capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true
         } catch (e: SecurityException) {
+            Log.e("NetworkMonitor", "SecurityException checking network", e)
             false
         }
     }

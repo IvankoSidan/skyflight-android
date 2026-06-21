@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -18,6 +19,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavHostController
 import coil.ImageLoader
 import coil.compose.AsyncImage
 import com.wheezy.skyflight.core.common.utils.DebounceHelper
@@ -31,6 +33,7 @@ import com.wheezy.skyflight.core.ui.R
 import com.wheezy.skyflight.core.ui.components.GlassCard
 import com.wheezy.skyflight.core.ui.components.GlassCardDefaults
 import com.wheezy.skyflight.feature.booking.presentation.components.booking.*
+import com.wheezy.skyflight.navigation.navigateToAirlineReviews
 import java.time.format.DateTimeFormatter
 
 @Composable
@@ -40,6 +43,8 @@ fun BookingHistoryItem(
     onCancelClick: (Booking) -> Unit,
     onPayClick: (Booking) -> Unit,
     onDeleteClick: (Booking) -> Unit,
+    modifier: Modifier = Modifier,
+    navController: NavHostController? = null,
     onReviewClick: (() -> Unit)? = null,
     onInvoiceClick: (() -> Unit)? = null,
     showReviewButton: Boolean = false,
@@ -47,7 +52,6 @@ fun BookingHistoryItem(
     isPaying: Boolean,
     isLoading: Boolean,
     paymentError: String? = null,
-    modifier: Modifier = Modifier,
     imageLoader: ImageLoader = ImageLoader.Builder(LocalContext.current).build(),
 ) {
     val context = LocalContext.current
@@ -67,12 +71,11 @@ fun BookingHistoryItem(
     val bookingDateText = remember(booking.bookingDate) {
         try {
             booking.bookingDate.format(DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm"))
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             booking.bookingDate.toString()
         }
     }
 
-    // Диалоги
     PayDeleteDialog(
         visible = showPayDialog && booking.status.canBePaid(),
         onDismiss = { showPayDialog = false },
@@ -115,7 +118,6 @@ fun BookingHistoryItem(
     ) {
         Column {
             Row(modifier = Modifier.fillMaxWidth()) {
-                // Левая цветная полоска статуса
                 Box(
                     modifier = Modifier
                         .width(6.dp)
@@ -131,19 +133,14 @@ fun BookingHistoryItem(
                         .background(statusColor)
                 )
 
-                // Основной контент
                 Column(
                     modifier = Modifier
                         .weight(1f)
                         .padding(12.dp)
                 ) {
-                    // Шапка с логотипом и маршрутом
                     BookingHeaderSection(flight, imageLoader)
-
-                    // Детали рейса
                     BookingDetailsSection(flight, bookingDateText)
 
-                    // Разделитель
                     Image(
                         painter = painterResource(id = R.drawable.dash_line),
                         contentDescription = null,
@@ -151,10 +148,8 @@ fun BookingHistoryItem(
                         contentScale = ContentScale.FillWidth
                     )
 
-                    // Информация о местах, классе, цене
                     BookingSeatInfoSection(flight, booking, totalPrice)
 
-                    // Разделитель
                     Image(
                         painter = painterResource(id = R.drawable.dash_line),
                         contentDescription = null,
@@ -162,7 +157,6 @@ fun BookingHistoryItem(
                         contentScale = ContentScale.FillWidth
                     )
 
-                    // Статус и кнопки
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -188,7 +182,27 @@ fun BookingHistoryItem(
                         )
                     }
 
-                    // Ошибка платежа
+                    if (navController != null) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            TextButton(
+                                onClick = {
+                                    navController.navigateToAirlineReviews(flight.airlineName)
+                                }
+                            ) {
+                                Text(
+                                    text = "View Airline Reviews",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+
                     if (paymentError != null && !isLoading && !isPaying) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Surface(
@@ -205,7 +219,6 @@ fun BookingHistoryItem(
                         }
                     }
 
-                    // Штрихкод внизу
                     Image(
                         painter = painterResource(id = R.drawable.barcode),
                         contentDescription = null,

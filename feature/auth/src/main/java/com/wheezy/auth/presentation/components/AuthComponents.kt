@@ -14,20 +14,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.wheezy.skyflight.core.ui.R
-import com.wheezy.skyflight.core.ui.components.GradientButton
 
 @Composable
 fun AuthHeader(
     logoPainter: androidx.compose.ui.graphics.painter.Painter,
     title: String,
-    subtitle: String
+    subtitle: String,
+    modifier: Modifier = Modifier
 ) {
     Column(
+        modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(
@@ -55,9 +55,13 @@ fun AuthHeader(
 }
 
 @Composable
-fun AuthTitle(title: String) {
+fun AuthTitle(
+    title: String,
+    modifier: Modifier = Modifier
+) {
     Text(
-        title,
+        text = title,
+        modifier = modifier,
         style = MaterialTheme.typography.headlineSmall.copy(
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
@@ -71,11 +75,11 @@ fun AuthTextField(
     onValueChange: (String) -> Unit,
     label: String,
     leadingIcon: androidx.compose.ui.graphics.vector.ImageVector,
+    modifier: Modifier = Modifier,
     isError: Boolean = false,
     errorMessage: String? = null,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
-    keyboardActions: KeyboardActions = KeyboardActions.Default,
-    modifier: Modifier = Modifier
+    keyboardActions: KeyboardActions = KeyboardActions.Default
 ) {
     Column(modifier = modifier) {
         OutlinedTextField(
@@ -118,11 +122,11 @@ fun PasswordTextField(
     value: String,
     onValueChange: (String) -> Unit,
     label: String,
+    modifier: Modifier = Modifier,
     isError: Boolean = false,
     errorMessage: String? = null,
     keyboardOptions: KeyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-    keyboardActions: KeyboardActions = KeyboardActions.Default,
-    modifier: Modifier = Modifier
+    keyboardActions: KeyboardActions = KeyboardActions.Default
 ) {
     var showPassword by remember { mutableStateOf(false) }
 
@@ -173,35 +177,16 @@ fun PasswordTextField(
 }
 
 @Composable
-fun RememberMeCheckbox(
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+fun ErrorMessage(
+    message: String?,
+    modifier: Modifier = Modifier
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Checkbox(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = CheckboxDefaults.colors(
-                checkedColor = MaterialTheme.colorScheme.primary,
-                uncheckedColor = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        )
-        Spacer(modifier = Modifier.width(4.dp))
-        Text("Remember me", color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-
-@Composable
-fun ErrorMessage(message: String?) {
     message?.let {
         Text(
             it,
             color = MaterialTheme.colorScheme.error,
             style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.padding(vertical = 8.dp)
+            modifier = modifier.padding(vertical = 8.dp)
         )
     }
 }
@@ -209,8 +194,8 @@ fun ErrorMessage(message: String?) {
 @Composable
 fun GoogleSignInButton(
     onClick: () -> Unit,
-    isLoading: Boolean = false,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isLoading: Boolean = false
 ) {
     Button(
         onClick = onClick,
@@ -245,9 +230,11 @@ fun GoogleSignInButton(
 }
 
 @Composable
-fun AuthDivider() {
+fun AuthDivider(
+    modifier: Modifier = Modifier
+) {
     HorizontalDivider(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         thickness = 1.dp,
         color = MaterialTheme.colorScheme.outline
     )
@@ -256,9 +243,13 @@ fun AuthDivider() {
 @Composable
 fun AuthNavigationButton(
     text: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    TextButton(onClick = onClick) {
+    TextButton(
+        onClick = onClick,
+        modifier = modifier
+    ) {
         Text(
             text,
             color = MaterialTheme.colorScheme.primary

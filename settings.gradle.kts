@@ -1,17 +1,40 @@
+import org.gradle.api.initialization.resolve.RepositoriesMode
+
 pluginManagement {
     repositories {
+        maven { url = uri("https://maven.aliyun.com/repository/google") }
+        maven { url = uri("https://maven.aliyun.com/repository/public") }
         google()
         mavenCentral()
         gradlePluginPortal()
+    }
+
+    resolutionStrategy {
+        eachPlugin {
+            when (requested.id.id) {
+                "com.google.gms.google-services" -> {
+                    useModule("com.google.gms:google-services:${requested.version}")
+                }
+                "com.android.application",
+                "com.android.library" -> {
+                    useModule("com.android.tools.build:gradle:${requested.version}")
+                }
+                "org.jetbrains.kotlin.android" -> {
+                    useModule("org.jetbrains.kotlin:kotlin-gradle-plugin:${requested.version}")
+                }
+            }
+        }
     }
 }
 
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
+        maven { url = uri("https://maven.aliyun.com/repository/google") }
+        maven { url = uri("https://maven.aliyun.com/repository/public") }
         google()
         mavenCentral()
-        maven("https://jitpack.io")
+        maven { url = uri("https://jitpack.io") }
     }
 }
 
@@ -30,10 +53,10 @@ include(
     ":feature:search",
     ":feature:booking",
     ":feature:notifications",
-    ":navigation",
     ":feature:referral",
     ":feature:review",
     ":feature:loyalty",
     ":feature:cards",
-    ":feature:invoice"
+    ":feature:invoice",
+    ":navigation"
 )

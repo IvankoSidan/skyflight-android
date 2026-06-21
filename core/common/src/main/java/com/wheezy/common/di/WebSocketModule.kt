@@ -15,6 +15,7 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 abstract class WebSocketModule {
 
+    @Suppress("unused")
     @Binds
     @Singleton
     abstract fun bindWebSocketManager(

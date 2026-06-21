@@ -36,8 +36,10 @@ dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:common"))
     implementation(project(":core:ui"))
+    implementation(project(":core:network"))
     implementation(project(":core:datastore"))
     implementation(project(":navigation"))
+    implementation("com.squareup.retrofit2:retrofit:2.11.0")
 
     implementation(platform("androidx.compose:compose-bom:2024.10.01"))
     implementation("androidx.compose.ui:ui")
@@ -49,6 +51,7 @@ dependencies {
     implementation("androidx.compose.runtime:runtime-livedata")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
+
 
     // DataStore
     implementation("androidx.datastore:datastore-preferences:1.0.0")

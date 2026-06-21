@@ -1,5 +1,6 @@
 package com.wheezy.skyflight.core.network.api
 
+import com.google.gson.annotations.SerializedName
 import retrofit2.Response
 import retrofit2.http.GET
 import retrofit2.http.Query
@@ -32,12 +33,26 @@ data class ForecastResponse(
 )
 
 data class ForecastItem(
-    val dt_txt: String,
+    @SerializedName("dt_txt")
+    val dtTxt: String,
     val main: MainData,
     val weather: List<WeatherData>
 )
 
 data class ForecastCity(val name: String)
-data class MainData(val temp: Double, val feels_like: Double, val humidity: Int)
-data class WeatherData(val main: String, val icon: String)
-data class WindData(val speed: Double)
+
+data class MainData(
+    val temp: Double,
+    @SerializedName("feels_like")
+    val feelsLike: Double,
+    val humidity: Int
+)
+
+data class WeatherData(
+    val main: String,
+    val icon: String
+)
+
+data class WindData(
+    val speed: Double
+)
