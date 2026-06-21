@@ -226,7 +226,6 @@ fun BookingHistoryScreen(
                                     BookingHistoryItem(
                                         flight = flightModel,
                                         booking = bookingEntity,
-                                        navController = navController,
                                         onCancelClick = { b ->
                                             scope.launch {
                                                 bookingViewModel.cancelOrDeleteBooking(b.id, b.status)

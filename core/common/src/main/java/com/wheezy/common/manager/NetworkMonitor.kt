@@ -84,10 +84,13 @@ class NetworkMonitor @Inject constructor(
         if (!hasNetworkPermission()) return false
 
         return try {
-            val network: Network? = connectivityManager.activeNetwork
-            val capabilities: NetworkCapabilities? = connectivityManager.getNetworkCapabilities(network)
-            capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
-                    && capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true
+            val network = connectivityManager.activeNetwork
+
+            connectivityManager.getNetworkCapabilities(network)?.let { capabilities ->
+                capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                        capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+            } ?: false
+
         } catch (e: SecurityException) {
             Log.e("NetworkMonitor", "SecurityException checking network", e)
             false

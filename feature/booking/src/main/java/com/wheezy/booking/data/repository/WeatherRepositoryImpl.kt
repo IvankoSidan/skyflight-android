@@ -31,7 +31,7 @@ class WeatherRepositoryImpl @Inject constructor(
                 val data = response.body()!!
                 val weather = WeatherModel(
                     temperature = data.main.temp,
-                    feelsLike = data.main.feels_like,
+                    feelsLike = data.main.feelsLike,
                     humidity = data.main.humidity,
                     windSpeed = data.wind.speed,
                     condition = data.weather.firstOrNull()?.main ?: "Unknown",
@@ -57,7 +57,7 @@ class WeatherRepositoryImpl @Inject constructor(
             val response = weatherApiService.getForecast(cityName)
             if (response.isSuccessful && response.body() != null) {
                 val data = response.body()!!
-                val forecasts = data.list.groupBy { it.dt_txt.substring(0, 10) }
+                val forecasts = data.list.groupBy { it.dtTxt.substring(0, 10) }
                     .mapNotNull { (date, items) ->
                         val maxTemp = items.maxOfOrNull { it.main.temp } ?: return@mapNotNull null
                         val minTemp = items.minOfOrNull { it.main.temp } ?: return@mapNotNull null

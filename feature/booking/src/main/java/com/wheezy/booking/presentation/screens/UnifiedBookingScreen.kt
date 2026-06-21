@@ -32,6 +32,7 @@ import com.wheezy.skyflight.feature.booking.presentation.components.booking.Seat
 import com.wheezy.skyflight.feature.booking.presentation.states.PaymentState
 import com.wheezy.skyflight.feature.booking.presentation.viewmodels.BookingViewModel
 import com.wheezy.skyflight.feature.booking.presentation.viewmodels.PaymentViewModel
+import com.wheezy.common.state.PointsBalanceState
 import com.wheezy.skyflight.navigation.Screen
 import com.wheezy.skyflight.navigation.navigateAndClearStack
 import kotlinx.coroutines.launch
@@ -55,7 +56,7 @@ fun UnifiedBookingScreen(
     val reservedSeats by seatSelection.reservedSeats.collectAsState()
 
     val paymentState by paymentViewModel.paymentState.collectAsState()
-    val pointsBalanceStateValue by loyalty.pointsBalanceState.collectAsState()
+    val pointsBalanceState by loyalty.pointsBalanceState.collectAsState()
     val calculatedDiscountValue by loyalty.calculatedDiscount.collectAsState()
     val isLoyaltyLoading by loyalty.isLoading.collectAsState()
     val isCreatingBooking by bookingViewModel.isCreatingBooking.collectAsState()
@@ -163,56 +164,60 @@ fun UnifiedBookingScreen(
     }
 
     if (showPointsDialog) {
-        pointsBalanceStateValue?.let { balance ->
-            AlertDialog(
-                onDismissRequest = { showPointsDialog = false },
-                title = { Text("Use Loyalty Points") },
-                text = {
-                    Column {
-                        Text("Available points: ${balance.balance}")
-                        Text("100 points = 100 discount")
-                        Spacer(modifier = Modifier.height(8.dp))
-                        OutlinedTextField(
-                            value = pointsToUse.toString(),
-                            onValueChange = {
-                                pointsToUse =
-                                    it.toIntOrNull()
-                                        ?.coerceIn(0, balance.balance)
-                                        ?: 0
-                            },
-                            label = { Text("Points to use") },
-                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                                keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Text(
-                            text = "Discount: ${(pointsToUse / 100) * 100}",
-                            style = MaterialTheme.typography.titleSmall,
-                            modifier = Modifier.padding(top = 8.dp)
-                        )
-                    }
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            if (pointsToUse > 0) {
-                                usePoints = true
-                            }
-                            showPointsDialog = false
+        when (val state = pointsBalanceState) {
+            is PointsBalanceState.Success -> {
+                val balance = state.data
+                AlertDialog(
+                    onDismissRequest = { showPointsDialog = false },
+                    title = { Text("Use Loyalty Points") },
+                    text = {
+                        Column {
+                            Text("Available points: ${balance.balance}")
+                            Text("100 points = 100 discount")
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value = pointsToUse.toString(),
+                                onValueChange = {
+                                    pointsToUse =
+                                        it.toIntOrNull()
+                                            ?.coerceIn(0, balance.balance)
+                                            ?: 0
+                                },
+                                label = { Text("Points to use") },
+                                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Text(
+                                text = "Discount: ${(pointsToUse / 100) * 100}",
+                                style = MaterialTheme.typography.titleSmall,
+                                modifier = Modifier.padding(top = 8.dp)
+                            )
                         }
-                    ) {
-                        Text("Apply")
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                if (pointsToUse > 0) {
+                                    usePoints = true
+                                }
+                                showPointsDialog = false
+                            }
+                        ) {
+                            Text("Apply")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(
+                            onClick = { showPointsDialog = false }
+                        ) {
+                            Text("Cancel")
+                        }
                     }
-                },
-                dismissButton = {
-                    TextButton(
-                        onClick = { showPointsDialog = false }
-                    ) {
-                        Text("Cancel")
-                    }
-                }
-            )
+                )
+            }
+            else -> {}
         }
     }
 
@@ -343,46 +348,50 @@ fun UnifiedBookingScreen(
                             )
                         }
 
-                        pointsBalanceStateValue?.let { balance ->
-                            if (balance.balance > 0) {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            imageVector = Icons.Default.Star,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Column {
-                                            Text(
-                                                text = "Points balance: ${balance.balance}",
-                                                style = MaterialTheme.typography.bodySmall
+                        when (val state = pointsBalanceState) {
+                            is PointsBalanceState.Success -> {
+                                val balance = state.data
+                                if (balance.balance > 0) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(
+                                                imageVector = Icons.Default.Star,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(20.dp)
                                             )
-                                            if (usePoints) {
-                                                calculatedDiscountValue?.let { discount ->
-                                                    Text(
-                                                        text = "Discount applied: ${discount.discountAmount / 100}",
-                                                        style = MaterialTheme.typography.labelSmall,
-                                                        color = MaterialTheme.colorScheme.tertiary
-                                                    )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Column {
+                                                Text(
+                                                    text = "Points balance: ${balance.balance}",
+                                                    style = MaterialTheme.typography.bodySmall
+                                                )
+                                                if (usePoints) {
+                                                    calculatedDiscountValue?.let { discount ->
+                                                        Text(
+                                                            text = "Discount applied: ${discount.discountAmount / 100}",
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            color = MaterialTheme.colorScheme.tertiary
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }
-                                    }
-                                    TextButton(
-                                        onClick = { showPointsDialog = true },
-                                        enabled = !isLoyaltyLoading
-                                    ) {
-                                        Text(if (usePoints) "Change" else "Use points")
+                                        TextButton(
+                                            onClick = { showPointsDialog = true },
+                                            enabled = !isLoyaltyLoading
+                                        ) {
+                                            Text(if (usePoints) "Change" else "Use points")
+                                        }
                                     }
                                 }
                             }
+                            else -> {}
                         }
 
                         Spacer(modifier = Modifier.height(16.dp))

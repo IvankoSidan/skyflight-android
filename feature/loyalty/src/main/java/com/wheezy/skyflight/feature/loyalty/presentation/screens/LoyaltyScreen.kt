@@ -20,7 +20,7 @@ import com.wheezy.skyflight.core.ui.components.BackButton
 import com.wheezy.skyflight.core.ui.components.GlassCard
 import com.wheezy.skyflight.core.ui.components.WorldBackground
 import com.wheezy.skyflight.feature.loyalty.presentation.components.TierCard
-import com.wheezy.skyflight.feature.loyalty.presentation.states.PointsBalanceState
+import com.wheezy.common.state.PointsBalanceState
 import com.wheezy.skyflight.feature.loyalty.presentation.states.TiersState
 import com.wheezy.skyflight.feature.loyalty.presentation.states.TransactionsState
 import com.wheezy.skyflight.feature.loyalty.presentation.viewmodels.LoyaltyViewModel
@@ -32,7 +32,7 @@ fun LoyaltyScreen(
     navController: NavController,
     viewModel: LoyaltyViewModel = hiltViewModel()
 ) {
-    val pointsBalanceStateUi by viewModel.pointsBalanceStateUi.collectAsState()
+    val pointsBalanceState by viewModel.pointsBalanceState.collectAsState()
     val transactionsState by viewModel.transactionsState.collectAsState()
     val tiersState by viewModel.tiersState.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -80,7 +80,7 @@ fun LoyaltyScreen(
                 ) {
                     item {
                         GlassCard(modifier = Modifier.fillMaxWidth()) {
-                            when (val currentBalanceState = pointsBalanceStateUi) {
+                            when (val currentBalanceState = pointsBalanceState) {
                                 is PointsBalanceState.Loading -> {
                                     Box(
                                         modifier = Modifier.fillMaxWidth().padding(32.dp),

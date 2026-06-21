@@ -19,9 +19,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavHostController
 import coil.ImageLoader
-import coil.compose.AsyncImage
 import com.wheezy.skyflight.core.common.utils.DebounceHelper
 import com.wheezy.skyflight.core.common.utils.statusColor
 import com.wheezy.skyflight.core.model.Booking
@@ -33,7 +31,6 @@ import com.wheezy.skyflight.core.ui.R
 import com.wheezy.skyflight.core.ui.components.GlassCard
 import com.wheezy.skyflight.core.ui.components.GlassCardDefaults
 import com.wheezy.skyflight.feature.booking.presentation.components.booking.*
-import com.wheezy.skyflight.navigation.navigateToAirlineReviews
 import java.time.format.DateTimeFormatter
 
 @Composable
@@ -44,9 +41,9 @@ fun BookingHistoryItem(
     onPayClick: (Booking) -> Unit,
     onDeleteClick: (Booking) -> Unit,
     modifier: Modifier = Modifier,
-    navController: NavHostController? = null,
     onReviewClick: (() -> Unit)? = null,
     onInvoiceClick: (() -> Unit)? = null,
+    onAirlineReviewsClick: (() -> Unit)? = null,
     showReviewButton: Boolean = false,
     showInvoiceButton: Boolean = false,
     isPaying: Boolean,
@@ -182,18 +179,14 @@ fun BookingHistoryItem(
                         )
                     }
 
-                    if (navController != null) {
+                    if (onAirlineReviewsClick != null) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 12.dp, vertical = 4.dp),
                             horizontalArrangement = Arrangement.End
                         ) {
-                            TextButton(
-                                onClick = {
-                                    navController.navigateToAirlineReviews(flight.airlineName)
-                                }
-                            ) {
+                            TextButton(onClick = onAirlineReviewsClick) {
                                 Text(
                                     text = "View Airline Reviews",
                                     fontSize = 12.sp,

@@ -5,6 +5,7 @@ import android.net.ConnectivityManager
 import android.annotation.SuppressLint
 import android.net.NetworkCapabilities
 import coil.ImageLoader
+import com.wheezy.skyflight.core.network.BuildConfig
 import com.wheezy.skyflight.core.network.api.ApiService
 import com.wheezy.skyflight.core.network.api.NotificationSettingsApiService
 import com.wheezy.skyflight.core.network.api.WeatherApiService
@@ -97,11 +98,10 @@ object NetworkModule {
         connectivityManager: ConnectivityManager,
         qualityBasedTimeoutInterceptor: QualityBasedTimeoutInterceptor,
         sslErrorHandler: SSLErrorHandler,
-        throttleInterceptor: ThrottleInterceptor,
-        isDebug: Boolean
+        throttleInterceptor: ThrottleInterceptor
     ): OkHttpClient {
         val logging = HttpLoggingInterceptor().apply {
-            level = if (isDebug) HttpLoggingInterceptor.Level.BODY else HttpLoggingInterceptor.Level.NONE
+            level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY else HttpLoggingInterceptor.Level.NONE
         }
         val certificatePinner = CertificatePinner.Builder()
             .add("skyflightbooking.ru", "sha256/6rBSrDuH7ckyF11m/2JVnchz5WkP27Pig37UIhs89YQ=")
